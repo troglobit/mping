@@ -1,10 +1,22 @@
-mping: a simple multicast ping program 
-======================================
+a simple multicast ping program
+===============================
 
-The intention of this program is to be easy to use and script friendly.
-Similar to the standard ping program, but unlike unicast ping, which the
-TCP/IP stack responds to, the response to a multicast ping must be sent
-by a receiving mping.
+mping intends to be an easy to use and script friendly program.  Similar
+to the standard ping program, but unlike it, the response to multicast
+ping is sent by another mping.
+
+```
+      mping --> Hello!
+     .----.                  ._         Hi! <-- mping
+     |    |               .-(`  )               .----.
+     |    |--------------:(      ))             |    |
+     '----'              `(    )  ))------------|    |
+     Host A               ` __.:'               '----'
+	                                            Host B
+                              ^
+                              |
+Multicast friendly network ---'
+```
 
 By default, mping starts in receiver mode, joining the group given as
 command line argument.  To start as a sender, use `-s` and remember to
