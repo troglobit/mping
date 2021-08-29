@@ -1,5 +1,6 @@
 #include <err.h>
 #include <errno.h>
+#include <ifaddrs.h>
 #include <netdb.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -11,7 +12,6 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -27,6 +27,9 @@
 
 #define SENDER           's'
 #define RECEIVER         'r'
+
+#define INET_ADDRSTR_LEN 64
+typedef struct sockaddr_storage inet_addr_t;
 
 struct mping {
 	char            version[4];
@@ -64,7 +67,7 @@ int   sd;			/* socket descriptor */
 pid_t pid;			/* pid of mping program */
 
 struct sockaddr_in  mcaddr;	/* socket address structure */
-struct ip_mreq      imr;	/* multicast request structure */
+struct ip_mreqn     imr;	/* multicast request structure */
 
 struct in_addr      myaddr;	/* address struct for local IP */
 
@@ -84,7 +87,7 @@ unsigned char arg_ttl        = MC_TTL_DEFAULT;
 
 int verbose = 0;
 
-void init_socket(void)
+void init_socket(int ifindex)
 {
 	int off = 0;
 	int on = 1;
@@ -114,11 +117,14 @@ void init_socket(void)
 
 	/* construct a IGMP join request structure */
 	imr.imr_multiaddr.s_addr = inet_addr(arg_mcaddr);
-	imr.imr_interface.s_addr = htonl(INADDR_ANY);
+	imr.imr_ifindex = ifindex;
 
 	/* send an ADD MEMBERSHIP message via setsockopt */
 	if ((setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imr, sizeof(imr))) < 0)
 		err(1, "setsockopt() failed");
+
+        if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &imr, sizeof(imr)))
+                err(1, "Failed setting IP_MULTICAST_IF %d", ifindex);
 }
 
 static size_t strlencpy(char *dst, const char *src, size_t len)
@@ -138,81 +144,193 @@ static size_t strlencpy(char *dst, const char *src, size_t len)
 	return src - p - 1;
 }
 
-unsigned char *read_ip_address(char *iface, unsigned char *addr)
+const char *inet_address(inet_addr_t *ss, char *buf, size_t len)
 {
-	int fd;
-	struct ifreq ifr;
-	unsigned char *p, *result;
+	struct sockaddr_in *sin;
 
-	if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-		return NULL;
-
-	strlencpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
-	ifr.ifr_addr.sa_family = AF_INET;
-	if (-1 == ioctl(fd, SIOCGIFADDR, &ifr)) {
-		result = NULL;
-	} else {
-		p = (unsigned char *)&ifr.ifr_addr.sa_data;
-		p += 2;
-		result = memcpy(addr, p, 4);
+#ifdef AF_INET6
+	if (ss->ss_family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)ss;
+		return inet_ntop(AF_INET6, &sin6->sin6_addr, buf, len);
 	}
+#endif
 
-	close(fd);
-
-	return result;
+	sin = (struct sockaddr_in *)ss;
+	return inet_ntop(AF_INET, &sin->sin_addr, buf, len);
 }
 
-/**
- * get_local_host_info() - Decide destination or source of data
- * @iface: If defined and not empty use @iface as dest/source
- *
- * This function decides how to send or where to receive packets from.
- * The default is to lookup the source IP of this host, if this host
- * turns out to be 127.0.0.1 (localhost) the multicast packets will
- * use the route for the reserved Class D, Multicast, network
- * 224.0.0.0/4.  If none is defined traffic will probably use the
- * first external interface.  See /proc/net/dev
- *
- * However, if @iface is defined, and is not the empty string, that
- * interface will be selected for the communication.
+/*
+ * Find first interface that is not loopback, but is up, has link, and
+ * multicast capable.
  */
-void get_local_host_info(char *iface)
+static char *ifany(char *iface, size_t len)
 {
-	if (iface) {
-		unsigned char addr[6] = { 1, 2, 3, 4, 0, 0 };
-		char dotted[16];
+	struct ifaddrs *ifaddr, *ifa;
 
-		if (!read_ip_address(iface, addr))
-			err(1, "Failed retrieving IP address of iface:%s, error %d", iface, errno);
+	if (getifaddrs(&ifaddr) == -1)
+		return NULL;
 
-		snprintf(dotted, sizeof(dotted), "%u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
-		if (!inet_aton(dotted, &myaddr))
-			err(1, "Failed converting IP address %u.%u.%u.%u --> 0x%X of iface:%s, error %d",
-                            addr[0], addr[1], addr[2], addr[3], myaddr.s_addr, iface, errno);
+	for (ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
+		int ifindex;
 
-		if (verbose)
-			printf("Interface %s has ", iface);
-	} else {
-		char hostname[MAX_HOSTNAME_LEN];
-		struct hostent *hostinfo;
+		if (!(ifa->ifa_flags & IFF_UP))
+			continue;
 
-		/* lookup local hostname */
-		gethostname(hostname, MAX_HOSTNAME_LEN);
+		if (!(ifa->ifa_flags & IFF_RUNNING))
+			continue;
 
-		if (verbose)
-			printf("Localhost is %s, ", hostname);
+		if (!(ifa->ifa_flags & IFF_MULTICAST))
+			continue;
 
-		/* use gethostbyname to get host's IP address */
-		if ((hostinfo = gethostbyname(hostname)) == NULL)
-			err(1, "gethostbyname() failed");
+		ifindex = if_nametoindex(ifa->ifa_name);
+                if (verbose)
+                        printf("Found iface %s, ifindex %d\n", ifa->ifa_name, ifindex);
+		strncpy(iface, ifa->ifa_name, len);
+		iface[len] = 0;
+		break;
+	}
+	freeifaddrs(ifaddr);
 
-		myaddr.s_addr = *((unsigned long *)hostinfo->h_addr_list[0]);
+	return iface;
+}
+
+/* The BSD's or SVR4 systems like Solaris don't have /proc/net/route */
+static char *altdefault(char *iface, size_t len)
+{
+	char buf[256];
+	FILE *fp;
+
+	fp = popen("netstat -rn", "r");
+	if (!fp)
+		return NULL;
+
+	while (fgets(buf, sizeof(buf), fp)) {
+		char *token;
+
+		if (strncmp(buf, "default", 7) && strncmp(buf, "0.0.0.0", 7))
+			continue;
+
+		token = strtok(buf, " \t\n");
+		while (token) {
+			if (if_nametoindex(token)) {
+				strncpy(iface, token, len);
+				pclose(fp);
+
+				return iface;
+			}
+
+			token = strtok(NULL, " \t\n");
+		}
 	}
 
-	if (verbose)
-		printf("%s\n", inet_ntoa(myaddr));
+	pclose(fp);
+	return NULL;
+}
 
-	pid = getpid();
+/* Find default outbound *LAN* interface, i.e. skipping tunnels */
+char *ifdefault(char *iface, size_t len)
+{
+	uint32_t dest, gw, mask;
+	char buf[256], ifname[17];
+	char *ptr;
+	FILE *fp;
+	int rc, flags, cnt, use, metric, mtu, win, irtt;
+	int best = 100000, found = 0;
+
+	fp = fopen("/proc/net/route", "r");
+	if (!fp) {
+		ptr = altdefault(iface, len);
+		if (!ptr)
+			goto fallback;
+
+		return ptr;
+	}
+
+	/* Skip heading */
+	ptr = fgets(buf, sizeof(buf), fp);
+	if (!ptr)
+		goto end;
+
+	while (fgets(buf, sizeof(buf), fp) != NULL) {
+		rc = sscanf(buf, "%16s %X %X %X %d %d %d %X %d %d %d\n",
+			   ifname, &dest, &gw, &flags, &cnt, &use, &metric,
+			   &mask, &mtu, &win, &irtt);
+
+		if (rc < 10 || !(flags & 1)) /* IFF_UP */
+			continue;
+
+		if (dest != 0 || mask != 0)
+			continue;
+
+		if (!iface[0] || !strncmp(iface, "tun", 3)) {
+			if (metric >= best)
+				continue;
+
+			strncpy(iface, ifname, len);
+			iface[len] = 0;
+			best = metric;
+			found = 1;
+
+                        if (verbose)
+                                printf("Found default intefaces %s\n", iface);
+		}
+	}
+
+end:
+	fclose(fp);
+	if (found)
+		return iface;
+fallback:
+	return ifany(iface, len);
+}
+
+/* Find IP address of default outbound LAN interface */
+int ifinfo(char *iface, inet_addr_t *addr, int family)
+{
+	struct ifaddrs *ifaddr, *ifa;
+	char ifname[17] = { 0 };
+	char buf[INET_ADDRSTR_LEN] = { 0 };
+	int rc = -1;
+
+	if (!iface || !iface[0])
+		iface = ifdefault(ifname, sizeof(ifname));
+	if (!iface)
+		return -2;
+
+	rc = getifaddrs(&ifaddr);
+	if (rc == -1)
+		return -3;
+
+	rc = -1; /* Return -1 if iface with family is not found */
+	for (ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
+		if (!ifa->ifa_addr)
+			continue;
+
+		if (!(ifa->ifa_flags & IFF_MULTICAST))
+			continue;
+
+		if (family == AF_UNSPEC) {
+			if (ifa->ifa_addr->sa_family != AF_INET &&
+			    ifa->ifa_addr->sa_family != AF_INET6)
+				continue;
+		} else if (ifa->ifa_addr->sa_family != family)
+			continue;
+
+		if (iface && strcmp(iface, ifa->ifa_name))
+			continue;
+
+                if (verbose)
+                        printf("Found %s addr %s\n", ifa->ifa_name,
+                               inet_address((inet_addr_t *)ifa->ifa_addr, buf, sizeof(buf)));
+		*addr = *(inet_addr_t *)ifa->ifa_addr;
+		rc = if_nametoindex(ifa->ifa_name);
+                if (verbose)
+                        printf("iface %s, ifindex %d, addr %s\n", ifa->ifa_name, rc, buf);
+		break;
+	}
+	freeifaddrs(ifaddr);
+
+	return rc;
 }
 
 static void clean_exit(int signo)
@@ -544,6 +662,7 @@ int usage(void)
 int main(int argc, char **argv)
 {
 	char *iface = NULL;
+        inet_addr_t addr;
 	char ifname[16];
         int mode = 'r';
 	int c;
@@ -596,9 +715,12 @@ int main(int argc, char **argv)
         if (optind < argc)
                 strlencpy(arg_mcaddr, argv[optind], sizeof(arg_mcaddr));
 
-	init_socket();
-
-	get_local_host_info(iface);
+	pid = getpid();
+	init_socket(ifinfo(iface, &addr, AF_INET));
+        if (addr.ss_family == AF_INET) {
+                struct sockaddr_in *sin = (struct sockaddr_in *)&addr;
+                myaddr = sin->sin_addr;
+        }
 
 	if (mode == 's') {
 		printf("MPING %s:%d (ttl %d)\n", arg_mcaddr, arg_mcport, arg_ttl);
