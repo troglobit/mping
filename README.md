@@ -17,17 +17,20 @@ Usage
 
 ```
 Usage:
-  mping -r|-s [-v] [-i IFNAME] [-a GROUP] [-p PORT] [-t TTL]
+  mping [-hrsvV] [-i IFNAME] [-p PORT] [-t TTL] [GROUP]
 
 Options:
-  -r, -s       Receiver or sender. Required argument, mutually exclusive
-  -i IFNAME    Interface to use for sending/receiving
-  -a GROUP     Multicast group to listen/send on, default 239.255.255.1
-  -p PORT      Multicast port to listen/send on, default 10000
-  -t TTL       Multicast time to live to send, default 1
-  -?, -h       This help text
-  -v           Verbose mode
-  -V           Display version
+  -h         This help text
+  -i IFNAME  Interface to use for sending/receiving
+  -p PORT    Multicast port to listen/send on, default 4321
+  -r         Receiver mode, default
+  -s         Sender mode
+  -t TTL     Multicast time to live to send, default 1
+  -v         Verbose mode
+  -V         Show program version and contact information
+
+Defaults to use multicast group 225.1.2.3, UDP dst port 4321, outbound
+interface is chosen by the routing table, unless -i IFNAME
 ```
 
 Origin

@@ -1,10 +1,3 @@
-/* Simple multicast ping program with congestion control
- *
- * Taken from the book "Multicast Sockets - Practical Guide for Programmers"
- * written by David Makofske and Kevin Almeroth.  For online information see
- * http://www.nmsl.cs.ucsb.edu/MulticastSocketsBook/
- */
-
 #include <err.h>
 #include <errno.h>
 #include <netdb.h>
@@ -23,18 +16,18 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#define MC_GROUP_DEFAULT "239.255.255.1"
-#define MC_PORT_DEFAULT  10000
+#define MC_GROUP_DEFAULT "225.1.2.3"
+#define MC_PORT_DEFAULT  4321
 #define MC_TTL_DEFAULT   1
 
-#define RESPONSES_MAX 100
+#define RESPONSES_MAX    100
 
-#define MAX_BUF_LEN      1024    /* size of receive buffer */
-#define MAX_HOSTNAME_LEN  256    /* size of host name buffer */
-#define MAX_PINGS           5    /* number of pings to send */
+#define MAX_BUF_LEN      1024
+#define MAX_HOSTNAME_LEN 256
+#define MAX_PINGS        5
 
-#define SENDER   's'             /* mping sender identifier */
-#define RECEIVER 'r'             /* mping receiver identifier */
+#define SENDER           's'
+#define RECEIVER         'r'
 
 struct mping {
 	char            version[4];
@@ -85,9 +78,9 @@ double rtt_max   = 0;
 double rtt_min   = 999999999.0;
 
 /* default command-line arguments */
-char          arg_mcaddr_str[16] = MC_GROUP_DEFAULT;
-int           arg_mcport         = MC_PORT_DEFAULT;
-unsigned char arg_ttl            = MC_TTL_DEFAULT;
+char          arg_mcaddr[16] = MC_GROUP_DEFAULT;
+int           arg_mcport     = MC_PORT_DEFAULT;
+unsigned char arg_ttl        = MC_TTL_DEFAULT;
 
 int verbose = 0;
 
@@ -112,7 +105,7 @@ void init_socket(void)
 
 	/* construct a multicast address structure */
 	mcaddr.sin_family = AF_INET;
-	mcaddr.sin_addr.s_addr = inet_addr(arg_mcaddr_str);
+	mcaddr.sin_addr.s_addr = inet_addr(arg_mcaddr);
 	mcaddr.sin_port = htons(arg_mcport);
 
 	/* bind to multicast address to socket */
@@ -120,7 +113,7 @@ void init_socket(void)
 		err(1, "bind() failed");
 
 	/* construct a IGMP join request structure */
-	imr.imr_multiaddr.s_addr = inet_addr(arg_mcaddr_str);
+	imr.imr_multiaddr.s_addr = inet_addr(arg_mcaddr);
 	imr.imr_interface.s_addr = htonl(INADDR_ANY);
 
 	/* send an ADD MEMBERSHIP message via setsockopt */
@@ -231,7 +224,7 @@ static void clean_exit(int signo)
 
 	close(sd);
 
-	printf("\n--- mping statistics ---\n");
+	printf("\n--- %s mping statistics ---\n", arg_mcaddr);
 	printf("%d packets transmitted, %d packets received\n", packets_sent, packets_rcvd);
 	if (packets_rcvd == 0)
 		printf("round-trip min/avg/max = NA/NA/NA ms\n");
@@ -272,7 +265,7 @@ void send_mping(int signo)
 	mping.type             = SENDER;
 	mping.ttl              = arg_ttl;
 	mping.src_host.s_addr  = myaddr.s_addr;
-	mping.dest_host.s_addr = inet_addr(arg_mcaddr_str);
+	mping.dest_host.s_addr = inet_addr(arg_mcaddr);
 	mping.seq_no           = htonl(seqno);
 	mping.pid              = pid;
 	mping.tv.tv_sec        = htonl(now.tv_sec);
@@ -418,11 +411,11 @@ double send_interval(void)
 
 void receiver_listen_loop()
 {
-	printf("Listening on %s/%d:\n\n", arg_mcaddr_str, arg_mcport);
+	printf("Listening on %s:%d\n", arg_mcaddr, arg_mcport);
 
 	while (1) {
-                char recv_packet[MAX_BUF_LEN + 1]; /* buffer to receive pkt */
-                int len;                      /* len of string received */
+                char recv_packet[MAX_BUF_LEN + 1];
+                int len;
 
 		if ((len = recvfrom(sd, recv_packet, MAX_BUF_LEN, 0, NULL, 0)) < 0) {
 			if (errno == EINTR)
@@ -431,7 +424,6 @@ void receiver_listen_loop()
                         err(1, "recvfrom() failed");
 		}
 
-		/* process the received packet */
 		if (process_mping(recv_packet, len, SENDER) == 0) {
                         double interval;
                         int i;
@@ -530,17 +522,21 @@ int usage(void)
 {
 	fprintf(stderr,
 		"Usage:\n"
-                "  mping -r|-s [-v] [-i IFNAME] [-a GROUP] [-p PORT] [-t TTL]\n"
+                "  mping [-svV] [-i IFNAME] [-p PORT] [-t TTL] [GROUP]\n"
                 "\n"
 		"Options:\n"
-		"  -r, -s       Receiver or sender. Required argument, mutually exclusive\n"
-		"  -i IFNAME    Interface to use for sending/receiving\n"
-		"  -a GROUP     Multicast group to listen/send on, default " MC_GROUP_DEFAULT "\n"
-		"  -p PORT      Multicast port to listen/send on, default %d\n"
-		"  -t TTL       Multicast time to live to send, default %d\n"
-		"  -?, -h       This help text\n"
-                "  -v           Verbose mode\n"
-		"  -V           Display version\n", MC_PORT_DEFAULT, MC_TTL_DEFAULT);
+		"  -h         This help text\n"
+		"  -i IFNAME  Interface to use for sending/receiving\n"
+		"  -p PORT    Multicast port to listen/send to, default %d\n"
+		"  -r         Receiver mode, default\n"
+                "  -s         Sender mode\n"
+		"  -t TTL     Multicast time to live to send, default %d\n"
+                "  -v         Verbose operation\n"
+		"  -V         Show program version and contact information\n"
+                "\n"
+                "Defaults to use multicast group %s, UDP dst port %d, outbound\n"
+                "interface is chosen by the routing table, unless -i IFNAME\n",
+                MC_PORT_DEFAULT, MC_TTL_DEFAULT, MC_GROUP_DEFAULT, MC_PORT_DEFAULT);
 
 	return 0;
 }
@@ -553,35 +549,31 @@ int main(int argc, char **argv)
 	int c;
 
 	/* parse command-line arguments */
-	while ((c = getopt(argc, argv, "vVrsa:p:t:i:?h")) != -1) {
+	while ((c = getopt(argc, argv, "h?i:p:rst:vV")) != -1) {
 		switch (c) {
-		case 'r': /* mping receiver */
+		case 'i':
+			strlencpy(ifname, optarg, sizeof(ifname));
+			iface = ifname;
+			break;
+
+		case 'p':
+			arg_mcport = atoi(optarg);
+			break;
+
+		case 'r':
                         mode = 'r';
 			break;
 
-		case 's': /* mping sender */
+		case 's':
                         mode = 's';
+			break;
+
+		case 't':
+			arg_ttl = atoi(optarg);
 			break;
 
 		case 'v':
 			verbose = 1;
-			break;
-
-		case 'a': /* mping address override */
-			strlencpy(arg_mcaddr_str, optarg, sizeof(arg_mcaddr_str));
-			break;
-
-		case 'p': /* mping port override */
-			arg_mcport = atoi(optarg);
-			break;
-
-		case 't': /* mping ttl override */
-			arg_ttl = atoi(optarg);
-			break;
-
-		case 'i': /* use interface instead of default from hostname */
-			strlencpy(ifname, optarg, sizeof(ifname));
-			iface = ifname;
 			break;
 
 		case 'V':
@@ -598,13 +590,15 @@ int main(int argc, char **argv)
 		}
 	}
 
+        if (optind < argc)
+                strlencpy(arg_mcaddr, argv[optind], sizeof(arg_mcaddr));
+
 	init_socket();
 
 	get_local_host_info(iface);
 
 	if (mode == 's') {
-		printf("mpinging %s:%d with ttl=%d:\n\n", arg_mcaddr_str,
-		       arg_mcport, arg_ttl);
+		printf("MPING %s:%d (ttl %d)\n", arg_mcaddr, arg_mcport, arg_ttl);
 
 		signal(SIGINT, clean_exit);
 		signal(SIGALRM, send_mping);
