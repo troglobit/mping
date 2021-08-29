@@ -16,7 +16,7 @@ all: $(NAME)
 install: $(LIBNAME)
 	install -d $(DESTDIR)$(bindir)
 	install -d $(DESTDIR)$(docdir)
-	install -m 0644 $(NAME) $(DESTDIR)$(bindir)/$(NAME)
+	install -m 0755 $(NAME) $(DESTDIR)$(bindir)/$(NAME)
 	for file in $(DOCFILES); do					\
 		install -m 0644 $$file $(DESTDIR)$(docdir)/$$file;	\
 	done
