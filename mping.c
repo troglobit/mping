@@ -595,10 +595,11 @@ void check_send(int i)
 	if ((responses[i]->send_time.tv_sec < now.tv_sec) ||
 	    ((responses[i]->send_time.tv_sec == now.tv_sec) &&
 	     (responses[i]->send_time.tv_usec <= now.tv_usec))) {
+                size_t len = sizeof(responses[i]->pkt);
 
-		printf("Replying to mping from %s seqno=%d ttl=%d\n",
-		       inet_ntoa(responses[i]->pkt.dest_host),
-		       ntohl(responses[i]->pkt.seq_no), responses[i]->pkt.ttl);
+                printf("Reply to mping from %s bytes=%zu seqno=%u ttl=%d\n",
+                       inet_ntoa(responses[i]->pkt.dest_host), len,
+                       ntohl(responses[i]->pkt.seq_no), responses[i]->pkt.ttl);
 
 		subtract_timeval(&now, &responses[i]->pkt.delay);
 		responses[i]->pkt.delay.tv_sec = htonl(now.tv_sec);
