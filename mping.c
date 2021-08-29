@@ -24,7 +24,6 @@
 
 #define MAX_BUF_LEN      1024
 #define MAX_HOSTNAME_LEN 256
-#define MAX_PINGS        5
 
 #define SENDER           's'
 #define RECEIVER         'r'
@@ -80,6 +79,7 @@ double rtt_min   = 999999999.0;
 /* default command-line arguments */
 char          arg_mcaddr[16] = MC_GROUP_DEFAULT;
 int           arg_mcport     = MC_PORT_DEFAULT;
+int           arg_count      = -1;
 unsigned char arg_ttl        = MC_TTL_DEFAULT;
 
 int verbose = 0;
@@ -251,8 +251,7 @@ void send_mping(int signo)
 
         (void)signo;
 
-	/* increment count, check if done */
-	if (seqno++ >= MAX_PINGS) {
+	if (arg_count > 0 && seqno++ >= arg_count) {
 		/* set another alarm call to exit in 5 second */
 		signal(SIGALRM, clean_exit);
 		alarm(5);
@@ -525,6 +524,7 @@ int usage(void)
                 "  mping [-svV] [-i IFNAME] [-p PORT] [-t TTL] [GROUP]\n"
                 "\n"
 		"Options:\n"
+                "  -c COUNT   Stop after sending/receiving COUNT packets\n"
 		"  -h         This help text\n"
 		"  -i IFNAME  Interface to use for sending/receiving\n"
 		"  -p PORT    Multicast port to listen/send to, default %d\n"
@@ -548,9 +548,12 @@ int main(int argc, char **argv)
         int mode = 'r';
 	int c;
 
-	/* parse command-line arguments */
-	while ((c = getopt(argc, argv, "h?i:p:rst:vV")) != -1) {
+	while ((c = getopt(argc, argv, "c:h?i:p:rst:vV")) != -1) {
 		switch (c) {
+                case 'c':
+                        arg_count = atoi(optarg);
+                        break;
+
 		case 'i':
 			strlencpy(ifname, optarg, sizeof(ifname));
 			iface = ifname;
