@@ -29,25 +29,27 @@
 #define RECEIVER 'r'             /* mping receiver identifier */
 
 /* mping packet structure */
-struct mping_struct
-{
-   unsigned short version_major;
-   unsigned short version_minor;
-   unsigned char type;
-   unsigned char ttl;
-   struct in_addr src_host;
-   struct in_addr dest_host;
-   unsigned int seq_no;
-   pid_t pid;
-   struct timeval tv;
-   struct timeval delay;
+struct mping_struct {
+	unsigned short  version_major;
+	unsigned short  version_minor;
+
+	unsigned char   type;
+	unsigned char   ttl;
+
+	struct in_addr  src_host;
+	struct in_addr  dest_host;
+
+	unsigned int    seq_no;
+	pid_t           pid;
+
+	struct timeval  tv;
+	struct timeval  delay;
 } mping_packet;
 
 /* packet buffer for mping responses */
-struct response_buffer
-{
-   struct mping_struct pkt;
-   struct timeval send_time;
+struct response_buffer {
+	struct mping_struct pkt;
+	struct timeval send_time;
 };
 
 #define RESPONSE_BUFFER_SIZE 100
