@@ -632,6 +632,9 @@ void received_packet_count(int signo)
 		}
 	}
 
+        if (arg_count > 0 && packets_sent >= arg_count)
+                exit(0);
+
 	signal(SIGALRM, received_packet_count);
 	alarm(1);
 }
