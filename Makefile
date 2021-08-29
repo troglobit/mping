@@ -1,25 +1,38 @@
-RM        = @-rm -f
-CC        = gcc
-CFLAGS    = -g -Wall -Werror
+VERSION   = 1.3
+NAME      = mping
+PKG       = $(NAME)-$(VERSION)
+ARCHIVE   = $(PKG).tar.gz
 
-EXEC      = mping
-OBJS      = mping.o
-SRCS      = $(OBJS:.o=.c)
-DEPS      = $(addprefix .,$(SRCS:.c=.d))
+prefix   ?= /usr/local
+bindir    = $(prefix)/bin
+docdir    = $(prefix)/share/doc/$(NAME)
+DOCFILES  = README.md LICENSE
 
-# Autodependecy generation via GCC -M.
-.%.d: %.c
-	@$(SHELL) -ec '$(CC) -MM $(CFLAGS) $(CPPFLAGS) $< 2>/dev/null \
-                       | sed '\''s/\($*\)\.o[ :]*/\1.o $@ : /g'\'' > $@; \
-                       [ -s $@ ] || rm -f $@'
+CPPFLAGS ?= -W -Wall -Werror -DVERSION='"$(VERSION)"'
+CFLAGS   ?= -g -O2 -std=gnu99
 
-all:	$(EXEC)
+all: $(NAME)
 
-$(EXEC): $(OBJS)
+install: $(LIBNAME)
+	install -d $(DESTDIR)$(bindir)
+	install -d $(DESTDIR)$(docdir)
+	install -m 0644 $(NAME) $(DESTDIR)$(bindir)/$(NAME)
+	for file in $(DOCFILES); do					\
+		install -m 0644 $$file $(DESTDIR)$(docdir)/$$file;	\
+	done
+
+uninstall:
+	-$(RM) $(DESTDIR)$(bindir)/$(NAME)
+	-$(RM) -r $(DESTDIR)$(docdir)
 
 clean:
-	$(RM) mping $(EXEC) $(OBJS) $(DEPS)
+	-$(RM) $(NAME) *.o
 
-ifneq ($(MAKECMDGOALS),clean)
--include $(DEPS)
-endif
+dist:
+	git archive --format=tar.gz --prefix=$(PKG)/ -o ../$(ARCHIVE) v$(VERSION)
+
+distclean: clean
+	-$(RM) *~
+
+release: dist
+	(cd ..; md5sum $(ARCHIVE) > $(ARCHIVE).md5)
