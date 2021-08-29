@@ -1,6 +1,7 @@
 *~
 *.o
 .*.d
+.gdb_history
 mping
 GPATH
 GRTAGS
