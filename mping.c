@@ -87,6 +87,8 @@ int           arg_timeout    = 5;
 unsigned char arg_ttl        = MC_TTL_DEFAULT;
 
 int debug = 0;
+int quiet = 0;
+
 
 void init_socket(int ifindex)
 {
@@ -509,10 +511,12 @@ void sender_listen_loop()
 				rtt_min = actual_rtt;
 
 			/* output received packet information */
-			printf("%d bytes from %s: seqno=%u ttl=%d ",
-			       len, inet_ntoa(rcvd_pkt->src_host),
-			       rcvd_pkt->seq_no, rcvd_pkt->ttl);
-			printf("etime=%.1f ms atime=%.3f ms\n", rtt, actual_rtt);
+                        if (!quiet) {
+                                printf("%d bytes from %s: seqno=%u ttl=%d ",
+                                       len, inet_ntoa(rcvd_pkt->src_host),
+                                       rcvd_pkt->seq_no, rcvd_pkt->ttl);
+                                printf("etime=%.1f ms atime=%.3f ms\n", rtt, actual_rtt);
+                        }
 		}
 	}
 }
@@ -527,9 +531,10 @@ void check_send(int i)
 	     (responses[i]->send_time.tv_usec <= now.tv_usec))) {
                 size_t len = sizeof(responses[i]->pkt);
 
-                printf("Reply to mping from %s bytes=%zu seqno=%u ttl=%d\n",
-                       inet_ntoa(responses[i]->pkt.dest_host), len,
-                       ntohl(responses[i]->pkt.seq_no), responses[i]->pkt.ttl);
+                if (!quiet)
+                        printf("Reply to mping from %s bytes=%zu seqno=%u ttl=%d\n",
+                               inet_ntoa(responses[i]->pkt.dest_host), len,
+                               ntohl(responses[i]->pkt.seq_no), responses[i]->pkt.ttl);
 
 		subtract_timeval(&now, &responses[i]->pkt.delay);
 		responses[i]->pkt.delay.tv_sec = htonl(now.tv_sec);
@@ -587,9 +592,10 @@ void receiver_listen_loop()
 		if (process_mping(recv_packet, len, SENDER) == 0) {
                         int i;
 
-			printf("Received mping from %s bytes=%d seqno=%u ttl=%d\n",
-                               inet_ntoa(rcvd_pkt->src_host), len,
-                               rcvd_pkt->seq_no, rcvd_pkt->ttl);
+                        if (!quiet)
+                                printf("Received mping from %s bytes=%d seqno=%u ttl=%d\n",
+                                       inet_ntoa(rcvd_pkt->src_host), len,
+                                       rcvd_pkt->seq_no, rcvd_pkt->ttl);
 
 			i = empty_response;
 			if (responses[i] != NULL) {
@@ -631,7 +637,7 @@ int usage(void)
 {
 	fprintf(stderr,
 		"Usage:\n"
-                "  mping [-dhrsv] [-i IFNAME] [-p PORT] [-t TTL] [-W SEC] [GROUP]\n"
+                "  mping [-dhqrsv] [-i IFNAME] [-p PORT] [-t TTL] [-W SEC] [GROUP]\n"
                 "\n"
 		"Options:\n"
                 "  -c COUNT    Stop after sending/receiving COUNT packets\n"
@@ -639,6 +645,7 @@ int usage(void)
 		"  -h          This help text\n"
 		"  -i IFNAME   Interface to use for sending/receiving\n"
 		"  -p PORT     Multicast port to listen/send to, default %d\n"
+                "  -q          Quiet output, only startup and and summary lines\n"
 		"  -r          Receiver mode, default\n"
                 "  -s          Sender mode\n"
 		"  -t TTL      Multicast time to live to send, default %d\n"
@@ -660,7 +667,7 @@ int main(int argc, char **argv)
         int mode = 'r';
 	int c;
 
-	while ((c = getopt(argc, argv, "c:dh?i:p:rst:vW:")) != -1) {
+	while ((c = getopt(argc, argv, "c:dh?i:p:qrst:vW:")) != -1) {
 		switch (c) {
                 case 'c':
                         arg_count = atoi(optarg);
@@ -678,6 +685,10 @@ int main(int argc, char **argv)
 		case 'p':
 			arg_mcport = atoi(optarg);
 			break;
+
+                case 'q':
+                        quiet = 1;
+                        break;
 
 		case 'r':
                         mode = 'r';

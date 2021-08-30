@@ -23,10 +23,10 @@ kill $PID 2>/dev/null
 echo "Detected lost packets."
 
 print "Verify ping successful ..."
-../mping -r -c 3 -i lo &
+../mping -rq -c 3 -i lo &
 PID=$!
 
-../mping -s -c 3 -i lo -W 1
+../mping -sq -c 3 -i lo -W 1
 rc=$?
 
 kill $PID 2>/dev/null
