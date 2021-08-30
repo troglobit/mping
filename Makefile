@@ -15,7 +15,7 @@ CFLAGS   ?= -g -O2 -std=gnu99
 
 all: $(NAME)
 
-check:
+check: all
 	$(MAKE) -C test $@
 
 clean:
