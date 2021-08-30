@@ -27,6 +27,9 @@ install: $(LIBNAME)
 		install -m 0644 $$file $(DESTDIR)$(docdir)/$$file;	\
 	done
 
+install-strip: install
+	strip $(DESTDIR)$(bindir)/$(NAME)
+
 uninstall:
 	-$(RM) $(DESTDIR)$(bindir)/$(NAME)
 	-$(RM) -r $(DESTDIR)$(docdir)
