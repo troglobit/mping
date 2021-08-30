@@ -29,7 +29,7 @@ Usage
 
 ```
 Usage:
-  mping [-dhrsV] [-i IFNAME] [-p PORT] [-t TTL] [-W SEC] [GROUP]
+  mping [-dhrsv] [-i IFNAME] [-p PORT] [-t TTL] [-W SEC] [GROUP]
 
 Options:
   -d          Debug messages
@@ -39,7 +39,7 @@ Options:
   -r          Receiver mode, default
   -s          Sender mode
   -t TTL      Multicast time to live to send, default 1
-  -V          Show program version and contact information
+  -v          Show program version and contact information
   -W TIMEOUT  Time to wait for a response, in seconds, default 5
 
 Defaults to use multicast group 225.1.2.3, UDP dst port 4321, outbound

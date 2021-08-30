@@ -631,7 +631,7 @@ int usage(void)
 {
 	fprintf(stderr,
 		"Usage:\n"
-                "  mping [-dhrsV] [-i IFNAME] [-p PORT] [-t TTL] [-W SEC] [GROUP]\n"
+                "  mping [-dhrsv] [-i IFNAME] [-p PORT] [-t TTL] [-W SEC] [GROUP]\n"
                 "\n"
 		"Options:\n"
                 "  -c COUNT    Stop after sending/receiving COUNT packets\n"
@@ -642,7 +642,7 @@ int usage(void)
 		"  -r          Receiver mode, default\n"
                 "  -s          Sender mode\n"
 		"  -t TTL      Multicast time to live to send, default %d\n"
-		"  -V          Show program version and contact information\n"
+		"  -v          Show program version and contact information\n"
                 "  -W TIMEOUT  Time to wait for a response, in seconds, default 5\n"
                 "\n"
                 "Defaults to use multicast group %s, UDP dst port %d, outbound\n"
@@ -660,7 +660,7 @@ int main(int argc, char **argv)
         int mode = 'r';
 	int c;
 
-	while ((c = getopt(argc, argv, "c:dh?i:p:rst:VW:")) != -1) {
+	while ((c = getopt(argc, argv, "c:dh?i:p:rst:vW:")) != -1) {
 		switch (c) {
                 case 'c':
                         arg_count = atoi(optarg);
@@ -691,7 +691,7 @@ int main(int argc, char **argv)
 			arg_ttl = atoi(optarg);
 			break;
 
-		case 'V':
+		case 'v':
 			printf("mping version %s\n"
                                "\n"
                                "Bug report address: https://github.com/troglobit/mping/issues\n"
