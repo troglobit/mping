@@ -3,6 +3,17 @@ ChangeLog
 
 All notable changes to the project are documented in this file.
 
+[v1.4][] - 2021-08-31
+---------------------
+
+### Changes
+- Add man page to section 1
+- Add missing license heading to source file
+
+### Fixes
+- Fix missing newline and options in usage text
+
+
 [v1.3][] - 2021-08-30
 ---------------------
 
@@ -29,5 +40,5 @@ v1.2 - 2014-06-20
 
 Initial version, available from the toolbox repo.
 
-
+[v1.4]: https://github.com/troglobit/mping/compare/v1.3...v1.4
 [v1.3]: https://github.com/troglobit/mping/compare/v1.2...v1.3
