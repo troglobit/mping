@@ -18,7 +18,7 @@ PID=$!
 ../mping -s -c 3 -i lo -W 2
 rc=$?
 
-kill $PID 2>/dev/null
+kill -9 $PID 2>/dev/null
 [ $rc -eq 0 ] && FAIL
 echo
 
@@ -30,6 +30,6 @@ PID=$!
 rc=$?
 
 sleep 1
-kill $PID 2>/dev/null
+kill -9 $PID 2>/dev/null
 [ $rc -ne 0 ] && FAIL
 OK
