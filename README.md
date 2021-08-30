@@ -50,4 +50,6 @@ Origin
 ------
 
 Initially based on an example program from the book "Multicast Sockets",
-but since then completely rewritten and extended.
+but since then completely rewritten and extended.  Please send any bug
+reports, feature requests, patches/pull requests, and documentation
+fixes to [GitHub](https://github.com/troglobit/mping).
