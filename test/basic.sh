@@ -24,11 +24,11 @@ kill -9 $PID 2>/dev/null
 echo
 
 print "Phase 2: Verify successful ping ..."
-../mping -d -r -c 3 -i lo &
+../mping -qr -c 3 -i lo &
 PID=$!
 sleep 1
 
-../mping -d -s -c 3 -i lo -W 10
+../mping -qs -c 3 -i lo -W 3
 rc=$?
 
 kill -9 $PID 2>/dev/null
