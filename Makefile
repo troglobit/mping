@@ -13,6 +13,12 @@ CFLAGS   ?= -g -O2 -std=gnu99
 
 all: $(NAME)
 
+check:
+	$(MAKE) -C test $@
+
+clean:
+	-$(RM) $(NAME) *.o
+
 install: $(LIBNAME)
 	install -d $(DESTDIR)$(bindir)
 	install -d $(DESTDIR)$(docdir)
@@ -24,9 +30,6 @@ install: $(LIBNAME)
 uninstall:
 	-$(RM) $(DESTDIR)$(bindir)/$(NAME)
 	-$(RM) -r $(DESTDIR)$(docdir)
-
-clean:
-	-$(RM) $(NAME) *.o
 
 dist:
 	git archive --format=tar.gz --prefix=$(PKG)/ -o ../$(ARCHIVE) v$(VERSION)
