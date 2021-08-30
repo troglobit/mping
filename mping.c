@@ -637,11 +637,11 @@ int usage(void)
 {
 	fprintf(stderr,
 		"Usage:\n"
-                "  mping [-dhqrsv] [-i IFNAME] [-p PORT] [-t TTL] [-W SEC] [GROUP]\n"
+                "  mping [-dhqrsv] [-c COUNT] [-i IFNAME] [-p PORT] [-t TTL] [-W SEC] [GROUP]\n"
                 "\n"
 		"Options:\n"
                 "  -c COUNT    Stop after sending/receiving COUNT packets\n"
-                "  -d          Debug messages"
+                "  -d          Debug messages\n"
 		"  -h          This help text\n"
 		"  -i IFNAME   Interface to use for sending/receiving\n"
 		"  -p PORT     Multicast port to listen/send to, default %d\n"
