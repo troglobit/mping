@@ -517,80 +517,6 @@ void sender_listen_loop()
 	}
 }
 
-double send_interval(void)
-{
-	const int udp_overhead = 8;
-	const int ip_overhead = 20;
-        int packet_size;
-	double interval;
-
-	packet_size = sizeof(struct mping) + udp_overhead + ip_overhead;
-	interval = (packet_size * (double)last_pkt_count / BANDWIDTH);
-
-	return interval * (drand48() + 0.5);
-}
-
-void receiver_listen_loop()
-{
-	printf("Listening on %s:%d\n", arg_mcaddr, arg_mcport);
-
-	while (1) {
-                char recv_packet[MAX_BUF_LEN + 1];
-                int len;
-
-		if ((len = recvfrom(sd, recv_packet, MAX_BUF_LEN, 0, NULL, 0)) < 0) {
-			if (errno == EINTR)
-                                continue; /* interrupt is ok */
-
-                        err(1, "recvfrom() failed");
-		}
-
-		if (process_mping(recv_packet, len, SENDER) == 0) {
-                        double interval;
-                        int i;
-
-			printf("Received mping from %s bytes=%d seqno=%u ttl=%d\n",
-                               inet_ntoa(rcvd_pkt->src_host), len,
-                               rcvd_pkt->seq_no, rcvd_pkt->ttl);
-
-			i = empty_response;
-			if (responses[i] != NULL) {
-				if (verbose)
-					printf("Buffer full, packet dropped\n");
-				continue;
-			}
-
-			responses[i] = (struct resp *)malloc(sizeof(struct resp));
-                        if (responses[i] == NULL)
-                                err(1, "Failed allocating response %d", i);
-
-			strlencpy(responses[i]->pkt.version, VERSION, sizeof(responses[i]->pkt.version));
-			responses[i]->pkt.type             = RECEIVER;
-			responses[i]->pkt.ttl              = rcvd_pkt->ttl;
-			responses[i]->pkt.src_host.s_addr  = myaddr.s_addr;
-			responses[i]->pkt.dest_host.s_addr = rcvd_pkt->src_host.s_addr;
-			responses[i]->pkt.seq_no           = htonl(rcvd_pkt->seq_no);
-			responses[i]->pkt.pid              = rcvd_pkt->pid;
-			responses[i]->pkt.tv.tv_sec        = htonl(rcvd_pkt->tv.tv_sec);
-			responses[i]->pkt.tv.tv_usec       = htonl(rcvd_pkt->tv.tv_usec);
-
-			gettimeofday(&responses[i]->send_time, NULL);
-
-			responses[i]->pkt.delay = responses[i]->send_time;
-
-			/* add the random send delay to the send time */
-			interval = send_interval();
-			responses[i]->send_time.tv_sec  += (long)interval;
-			responses[i]->send_time.tv_usec += (long)((interval - (long)interval) * 1000000.0);
-
-			/* increment response buffer pointer */
-			empty_response++;
-			if (empty_response >= RESPONSES_MAX)
-				empty_response = 0;
-		}
-	}
-}
-
 void check_send(int i)
 {
 	struct timeval now;
@@ -641,6 +567,64 @@ void received_packet_count(int signo)
 
 	signal(SIGALRM, received_packet_count);
 	alarm(1);
+}
+
+void receiver_listen_loop()
+{
+	printf("Listening on %s:%d\n", arg_mcaddr, arg_mcport);
+
+	while (1) {
+                char recv_packet[MAX_BUF_LEN + 1];
+                int len;
+
+		if ((len = recvfrom(sd, recv_packet, MAX_BUF_LEN, 0, NULL, 0)) < 0) {
+			if (errno == EINTR)
+                                continue; /* interrupt is ok */
+
+                        err(1, "recvfrom() failed");
+		}
+
+		if (process_mping(recv_packet, len, SENDER) == 0) {
+                        int i;
+
+			printf("Received mping from %s bytes=%d seqno=%u ttl=%d\n",
+                               inet_ntoa(rcvd_pkt->src_host), len,
+                               rcvd_pkt->seq_no, rcvd_pkt->ttl);
+
+			i = empty_response;
+			if (responses[i] != NULL) {
+				if (verbose)
+					printf("Buffer full, packet dropped\n");
+				continue;
+			}
+
+			responses[i] = (struct resp *)malloc(sizeof(struct resp));
+                        if (responses[i] == NULL)
+                                err(1, "Failed allocating response %d", i);
+
+			strlencpy(responses[i]->pkt.version, VERSION, sizeof(responses[i]->pkt.version));
+			responses[i]->pkt.type             = RECEIVER;
+			responses[i]->pkt.ttl              = rcvd_pkt->ttl;
+			responses[i]->pkt.src_host.s_addr  = myaddr.s_addr;
+			responses[i]->pkt.dest_host.s_addr = rcvd_pkt->src_host.s_addr;
+			responses[i]->pkt.seq_no           = htonl(rcvd_pkt->seq_no);
+			responses[i]->pkt.pid              = rcvd_pkt->pid;
+			responses[i]->pkt.tv.tv_sec        = htonl(rcvd_pkt->tv.tv_sec);
+			responses[i]->pkt.tv.tv_usec       = htonl(rcvd_pkt->tv.tv_usec);
+
+			gettimeofday(&responses[i]->send_time, NULL);
+
+			responses[i]->pkt.delay = responses[i]->send_time;
+
+                        /* send reply immediately */
+                        received_packet_count(0);
+
+			/* increment response buffer pointer */
+			empty_response++;
+			if (empty_response >= RESPONSES_MAX)
+				empty_response = 0;
+		}
+	}
 }
 
 int usage(void)
