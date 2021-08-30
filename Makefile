@@ -6,6 +6,8 @@ ARCHIVE   = $(PKG).tar.gz
 prefix   ?= /usr/local
 bindir    = $(prefix)/bin
 docdir    = $(prefix)/share/doc/$(NAME)
+mandir    = $(prefix)/share/man/man1
+MAN1      = mping.1
 DOCFILES  = README.md LICENSE
 
 CPPFLAGS ?= -W -Wall -Werror -DVERSION='"$(VERSION)"'
@@ -22,7 +24,10 @@ clean:
 install: $(LIBNAME)
 	install -d $(DESTDIR)$(bindir)
 	install -d $(DESTDIR)$(docdir)
+	install -d $(DESTDIR)$(mandir)
 	install -m 0755 $(NAME) $(DESTDIR)$(bindir)/$(NAME)
+	install -m 0655 $(MAN1) $(DESTDIR)$(mandir)/$(MAN1)
+	gzip -f $(DESTDIR)$(mandir)/$(MAN1)
 	for file in $(DOCFILES); do					\
 		install -m 0644 $$file $(DESTDIR)$(docdir)/$$file;	\
 	done

@@ -1,0 +1,124 @@
+.\" Hey Emacs, this is an -*- nroff -*- document
+.\"
+.\" Copyright (c) 2021  Joachim Wiberg <troglobit@gmail.com>
+.\"
+.\" Permission is hereby granted, free of charge, to any person obtaining a copy
+.\" of this software and associated documentation files (the "Software"), to deal
+.\" in the Software without restriction, including without limitation the rights
+.\" to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+.\" copies of the Software, and to permit persons to whom the Software is
+.\" furnished to do so, subject to the following conditions:
+.\"
+.\" The above copyright notice and this permission notice shall be included in
+.\" all copies or substantial portions of the Software.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+.\" IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+.\" FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+.\" AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+.\" LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+.\" OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+.\" THE SOFTWARE.
+.\"
+.Dd August 30, 2021
+.Dt MPING 1
+.Os
+.Sh NAME
+.Nm mping
+.Nd a simple multicast ping program
+.Sh SYNOPSIS
+.Nm
+.Op Fl dhqrsv
+.Op Fl c Ar COUNT
+.Op Fl i Ar IFNAME
+.Op Fl p Ar PORT
+.Op Fl t Ar TTL
+.Op Fl W Ar SEC
+.Op Ar GROUP
+.Sh DESCRIPTION
+.Nm
+mping intends to be an easy to use and script friendly program.  Similar
+to the standard
+.Xr ping 1
+program, but unlike it, the response to multicast ping is sent by
+another
+.Nm .
+IT can be used to verify intended IGMP snooping functionality in layer-2
+bridges (switches), as well as verify forwarding of multicast in static
+.Nm ( SMCRoute )
+or dynamic
+.Nm ( mrouted ,
+.Nm pimd ,
+or
+.Nm pimd-dense )
+multicast routing setups.
+.Pp
+By default,
+.Nm
+starts in receiver mode, joining group 225.1.2.3, and for each received
+UDP packet from the sender, it is looped back.  For unicast ping, this
+is handled by the TCP/IP stack.  To run in sender mode, use the
+.Fl s
+command line option.  Remember to adjust the TTL value if you are in a
+routed setup, and to set the multicast interface with
+.Fl i Ar IFNAME ,
+otherwise the unicast routing table is used by the kernel to select the
+outbound interface, which often is not what you want.
+.Ss Limitations
+.Nm
+currently only supports any-source multicast, ASM (*,G), and is limited
+to IPv4.
+.Pp
+.Nm
+does not create or send IGMP frames directly.  It only asks the Linux
+kernel for groups from a specific interface, which is then converted to
+the IGMP v2 join messages, or IGMP v3 membership reports by the kernel.
+.Ss Changing IGMP Version on Linux
+On Linux systems you can change the IGMP version of an interface, and
+thus what type of packets the kernel generates, by writing to the file
+.Pa /proc/sys/net/ipv4/conf/eth0/force_igmp_version .
+E.g., to change
+.Cm eth0
+to IGMPv2:
+.Bd -literal -offset indent
+echo 2 | sudo tee /proc/sys/net/ipv4/conf/eth0/force_igmp_version
+.Ed
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl c Ar COUNT
+Stop sending/receiving after COUNT number of packets
+.It Fl d
+Enable debug messages.
+.It Fl h
+Print a summary of the options and exit
+.It Fl i Ar IFNAME
+Interface to use for sending/receiving multicast.  The default is to
+automatically look up the default interface from the unicast routing
+table.
+.It Fl p Ar PORT
+UDP port number to send/listen to, default: 4321
+.It Fl q
+Quiet output, only startup message and summary lines are printed
+.It Fl r
+Act as receiver, looping back packets to the sender, default: yes
+.It Fl s
+Act as sender, sends packets to select groups, default: no
+.It Fl t Ar TTL
+TTL to use when sending multicast packets, default: 1
+.It Fl v
+Show version information
+.It Fl W Ar SEC
+Timeout, in seconds, after the last received packet.
+.El
+.Sh SEE ALSO
+.Xr ping 1 ,
+.Xr mcjoin 1 ,
+.Xr nemesis 1
+.Sh BUGS
+Use the project's GitHub page to file bug reports, feature requests or
+patches (preferably as GitHub pull requests), or questions at
+.Aq https://github.com/troglobit/mping
+.Sh AUTHORS
+Originally based on an example from the book Multicast Sockets, by David
+Makofske and Kevin Almeroth.  Since then completely rewritten and
+expanded on by Joachim Wiberg at GitHub.
