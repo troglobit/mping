@@ -26,7 +26,7 @@ print "Verify ping successful ..."
 ../mping -rq -c 3 -i lo &
 PID=$!
 
-../mping -sq -c 3 -i lo -W 1
+../mping -sq -c 3 -i lo -W 2
 rc=$?
 
 kill $PID 2>/dev/null
