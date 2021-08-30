@@ -24,6 +24,10 @@ jobs:
       MAKEFLAGS: -j3
       CC: ${{ matrix.compiler }}
     steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install tree
       - uses: actions/checkout@v2
       - name: Build
         run: |
@@ -31,10 +35,10 @@ jobs:
       - name: Install to ~/tmp and Inspect
         run: |
           DESTDIR=~/tmp make install-strip
-          ls -lR ~/tmp
-          ldd ~/tmp/bin/mping
-          size ~/tmp/bin/mping
-          ~/tmp/bin/mping -h
+          tree ~/tmp
+          ldd ~/tmp/usr/local/bin/mping
+          size ~/tmp/usr/local/bin/mping
+          ~/tmp/usr/local/bin/mping -h
       - name: Run Unit Tests
         run: |
           make check
