@@ -20,6 +20,7 @@ rc=$?
 
 kill $PID 2>/dev/null
 [ $rc -eq 0 ] && FAIL
+echo "Detected lost packets."
 
 print "Verify ping successful ..."
 ../mping -r -c 3 -i lo &
