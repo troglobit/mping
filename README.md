@@ -29,17 +29,18 @@ Usage
 
 ```
 Usage:
-  mping [-hrsvV] [-i IFNAME] [-p PORT] [-t TTL] [GROUP]
+  mping [-dhrsV] [-i IFNAME] [-p PORT] [-t TTL] [-W SEC] [GROUP]
 
 Options:
-  -h         This help text
-  -i IFNAME  Interface to use for sending/receiving
-  -p PORT    Multicast port to listen/send on, default 4321
-  -r         Receiver mode, default
-  -s         Sender mode
-  -t TTL     Multicast time to live to send, default 1
-  -v         Verbose mode
-  -V         Show program version and contact information
+  -d          Debug messages
+  -h          This help text
+  -i IFNAME   Interface to use for sending/receiving
+  -p PORT     Multicast port to listen/send on, default 4321
+  -r          Receiver mode, default
+  -s          Sender mode
+  -t TTL      Multicast time to live to send, default 1
+  -V          Show program version and contact information
+  -W TIMEOUT  Time to wait for a response, in seconds, default 5
 
 Defaults to use multicast group 225.1.2.3, UDP dst port 4321, outbound
 interface is chosen by the routing table, unless -i IFNAME

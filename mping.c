@@ -86,7 +86,7 @@ int           arg_count      = -1;
 int           arg_timeout    = 5;
 unsigned char arg_ttl        = MC_TTL_DEFAULT;
 
-int verbose = 0;
+int debug = 0;
 
 void init_socket(int ifindex)
 {
@@ -184,7 +184,7 @@ static char *ifany(char *iface, size_t len)
 			continue;
 
 		ifindex = if_nametoindex(ifa->ifa_name);
-                if (verbose)
+                if (debug)
                         printf("Found iface %s, ifindex %d\n", ifa->ifa_name, ifindex);
 		strncpy(iface, ifa->ifa_name, len);
 		iface[len] = 0;
@@ -272,7 +272,7 @@ char *ifdefault(char *iface, size_t len)
 			best = metric;
 			found = 1;
 
-                        if (verbose)
+                        if (debug)
                                 printf("Found default intefaces %s\n", iface);
 		}
 	}
@@ -320,12 +320,12 @@ int ifinfo(char *iface, inet_addr_t *addr, int family)
 		if (iface && strcmp(iface, ifa->ifa_name))
 			continue;
 
-                if (verbose)
+                if (debug)
                         printf("Found %s addr %s\n", ifa->ifa_name,
                                inet_address((inet_addr_t *)ifa->ifa_addr, buf, sizeof(buf)));
 		*addr = *(inet_addr_t *)ifa->ifa_addr;
 		rc = if_nametoindex(ifa->ifa_name);
-                if (verbose)
+                if (debug)
                         printf("iface %s, ifindex %d, addr %s\n", ifa->ifa_name, rc, buf);
 		break;
 	}
@@ -404,7 +404,7 @@ void send_mping(int signo)
 int process_mping(char *packet, int len, unsigned char type)
 {
 	if (len < (int)sizeof(struct mping)) {
-		if (verbose)
+		if (debug)
 			printf("Discarding packet: too small (%zu bytes)\n", strlen(packet));
 
 		return -1;
@@ -418,7 +418,7 @@ int process_mping(char *packet, int len, unsigned char type)
 	rcvd_pkt->delay.tv_usec = ntohl(rcvd_pkt->delay.tv_usec);
 
 	if (strcmp(rcvd_pkt->version, VERSION)) {
-		if (verbose)
+		if (debug)
 			printf("Discarding packet: version mismatch (%s)\n", rcvd_pkt->version);
 		return -1;
 	}
@@ -426,7 +426,7 @@ int process_mping(char *packet, int len, unsigned char type)
 	curr_pkt_count++;
 
 	if (rcvd_pkt->type != type) {
-		if (verbose) {
+		if (debug) {
 			switch (rcvd_pkt->type) {
 			case SENDER:
 				printf("Discarding sender packet\n");
@@ -447,7 +447,7 @@ int process_mping(char *packet, int len, unsigned char type)
 
 	if (rcvd_pkt->type == RECEIVER) {
 		if (rcvd_pkt->pid != pid) {
-			if (verbose)
+			if (debug)
 				printf("Discarding packet: pid mismatch (%u/%u)\n", pid, rcvd_pkt->pid);
 			return -1;
 		}
@@ -593,7 +593,7 @@ void receiver_listen_loop()
 
 			i = empty_response;
 			if (responses[i] != NULL) {
-				if (verbose)
+				if (debug)
 					printf("Buffer full, packet dropped\n");
 				continue;
 			}
@@ -631,17 +631,17 @@ int usage(void)
 {
 	fprintf(stderr,
 		"Usage:\n"
-                "  mping [-svV] [-i IFNAME] [-p PORT] [-t TTL] [GROUP]\n"
+                "  mping [-dhrsV] [-i IFNAME] [-p PORT] [-t TTL] [-W SEC] [GROUP]\n"
                 "\n"
 		"Options:\n"
                 "  -c COUNT    Stop after sending/receiving COUNT packets\n"
+                "  -d          Debug messages"
 		"  -h          This help text\n"
 		"  -i IFNAME   Interface to use for sending/receiving\n"
 		"  -p PORT     Multicast port to listen/send to, default %d\n"
 		"  -r          Receiver mode, default\n"
                 "  -s          Sender mode\n"
 		"  -t TTL      Multicast time to live to send, default %d\n"
-                "  -v          Verbose operation\n"
 		"  -V          Show program version and contact information\n"
                 "  -W TIMEOUT  Time to wait for a response, in seconds, default 5\n"
                 "\n"
@@ -660,11 +660,15 @@ int main(int argc, char **argv)
         int mode = 'r';
 	int c;
 
-	while ((c = getopt(argc, argv, "c:h?i:p:rst:vVW:")) != -1) {
+	while ((c = getopt(argc, argv, "c:dh?i:p:rst:VW:")) != -1) {
 		switch (c) {
                 case 'c':
                         arg_count = atoi(optarg);
                         break;
+
+		case 'd':
+			debug = 1;
+			break;
 
 		case 'i':
 			strlencpy(ifname, optarg, sizeof(ifname));
@@ -685,10 +689,6 @@ int main(int argc, char **argv)
 
 		case 't':
 			arg_ttl = atoi(optarg);
-			break;
-
-		case 'v':
-			verbose = 1;
 			break;
 
 		case 'V':
