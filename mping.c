@@ -83,6 +83,7 @@ double rtt_min   = 999999999.0;
 char          arg_mcaddr[16] = MC_GROUP_DEFAULT;
 int           arg_mcport     = MC_PORT_DEFAULT;
 int           arg_count      = -1;
+int           arg_timeout    = 5;
 unsigned char arg_ttl        = MC_TTL_DEFAULT;
 
 int verbose = 0;
@@ -372,7 +373,7 @@ void send_mping(int signo)
 	if (arg_count > 0 && seqno++ >= arg_count) {
 		/* set another alarm call to exit in 5 second */
 		signal(SIGALRM, clean_exit);
-		alarm(5);
+		alarm(arg_timeout);
 		return;
 	}
 
@@ -646,15 +647,16 @@ int usage(void)
                 "  mping [-svV] [-i IFNAME] [-p PORT] [-t TTL] [GROUP]\n"
                 "\n"
 		"Options:\n"
-                "  -c COUNT   Stop after sending/receiving COUNT packets\n"
-		"  -h         This help text\n"
-		"  -i IFNAME  Interface to use for sending/receiving\n"
-		"  -p PORT    Multicast port to listen/send to, default %d\n"
-		"  -r         Receiver mode, default\n"
-                "  -s         Sender mode\n"
-		"  -t TTL     Multicast time to live to send, default %d\n"
-                "  -v         Verbose operation\n"
-		"  -V         Show program version and contact information\n"
+                "  -c COUNT    Stop after sending/receiving COUNT packets\n"
+		"  -h          This help text\n"
+		"  -i IFNAME   Interface to use for sending/receiving\n"
+		"  -p PORT     Multicast port to listen/send to, default %d\n"
+		"  -r          Receiver mode, default\n"
+                "  -s          Sender mode\n"
+		"  -t TTL      Multicast time to live to send, default %d\n"
+                "  -v          Verbose operation\n"
+		"  -V          Show program version and contact information\n"
+                "  -W TIMEOUT  Time to wait for a response, in seconds, default 5\n"
                 "\n"
                 "Defaults to use multicast group %s, UDP dst port %d, outbound\n"
                 "interface is chosen by the routing table, unless -i IFNAME\n",
@@ -671,7 +673,7 @@ int main(int argc, char **argv)
         int mode = 'r';
 	int c;
 
-	while ((c = getopt(argc, argv, "c:h?i:p:rst:vV")) != -1) {
+	while ((c = getopt(argc, argv, "c:h?i:p:rst:vVW:")) != -1) {
 		switch (c) {
                 case 'c':
                         arg_count = atoi(optarg);
@@ -708,6 +710,10 @@ int main(int argc, char **argv)
                                "Bug report address: https://github.com/troglobit/mping/issues\n"
                                "Project homepage:   https://github.com/troglobit/mping/\n", VERSION);
 			return 0;
+
+                case 'W':
+                        arg_timeout = atoi(optarg);
+                        break;
 
 		case '?':
 		case 'h':
