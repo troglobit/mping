@@ -350,6 +350,9 @@ static void clean_exit(int signo)
 	else
 		printf("round-trip min/avg/max = %.3f/%.3f/%.3f ms\n",
 		       rtt_min, (rtt_total / packets_rcvd), rtt_max);
+
+        if (arg_count > 0 && arg_count != packets_rcvd)
+                exit(1);
 	exit(0);
 }
 
