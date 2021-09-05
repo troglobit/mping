@@ -37,6 +37,7 @@ install-strip: install
 
 uninstall:
 	-$(RM) $(DESTDIR)$(bindir)/$(NAME)
+	-$(RM) $(DESTDIR)$(mandir)/$(MAN1)
 	-$(RM) -r $(DESTDIR)$(docdir)
 
 dist:
