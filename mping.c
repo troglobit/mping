@@ -688,8 +688,8 @@ int usage(void)
                 "  -s          Sender mode\n"
 		"  -t TTL      Multicast time to live to send, default %d\n"
 		"  -v          Show program version and contact information\n"
-                "  -W TIMEOUT  Time to wait for a response, in seconds, default 5\n"
                 "  -w DEADLINE Timeout before exiting, waiting for COUNT replies\n"
+                "  -W TIMEOUT  Time to wait for a response, in seconds, default 5\n"
                 "\n"
                 "Defaults to use multicast group %s, UDP dst port %d, outbound\n"
                 "interface is chosen by the routing table, unless -i IFNAME\n",
