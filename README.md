@@ -34,17 +34,20 @@ Usage
 
 ```
 Usage:
-  mping [-dhrsv] [-i IFNAME] [-p PORT] [-t TTL] [-W SEC] [GROUP]
+  mping [-dhqrsv] [-c COUNT] [-i IFNAME] [-p PORT] [-t TTL] [-w SEC] [-W SEC] [GROUP]
 
 Options:
+  -c COUNT    Stop after sending/receiving COUNT packets
   -d          Debug messages
   -h          This help text
   -i IFNAME   Interface to use for sending/receiving
-  -p PORT     Multicast port to listen/send on, default 4321
+  -p PORT     Multicast port to listen/send to, default 4321
+  -q          Quiet output, only startup and and summary lines
   -r          Receiver mode, default
   -s          Sender mode
   -t TTL      Multicast time to live to send, default 1
   -v          Show program version and contact information
+  -w DEADLINE Timeout before exiting, waiting for COUNT replies
   -W TIMEOUT  Time to wait for a response, in seconds, default 5
 
 Defaults to use multicast group 225.1.2.3, UDP dst port 4321, outbound

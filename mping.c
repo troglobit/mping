@@ -92,6 +92,8 @@ struct ip_mreqn     imr;
 
 struct in_addr      myaddr;
 
+struct timeval      start;              /* start time for sender */
+
 /* counters and statistics variables */
 int packets_sent = 0;
 int packets_rcvd = 0;
@@ -105,6 +107,7 @@ char          arg_mcaddr[16] = MC_GROUP_DEFAULT;
 int           arg_mcport     = MC_PORT_DEFAULT;
 int           arg_count      = -1;
 int           arg_timeout    = 5;
+int           arg_deadline   = 0;
 unsigned char arg_ttl        = MC_TTL_DEFAULT;
 
 int debug = 0;
@@ -412,7 +415,20 @@ void send_mping(int signo)
 
         (void)signo;
 
-	if (arg_count > 0 && seqno++ >= arg_count) {
+        /*
+         * Tracks number of sent mpings.  If deadline mode is enabled we
+         * ignore this exit and wait for arg_count number of replies or
+         * deadline timeout.
+         */
+        if (arg_deadline) {
+		if (arg_count > 0 && packets_rcvd >= arg_count)
+                        clean_exit(0);
+
+                gettimeofday(&now, NULL);
+                subtract_timeval(&now, &start);
+                if (now.tv_sec >= arg_deadline)
+                        clean_exit(0);
+	} else if (arg_count > 0 && seqno >= arg_count) {
 		/* set another alarm call to exit in 5 second */
 		signal(SIGALRM, clean_exit);
 		alarm(arg_timeout);
@@ -420,7 +436,6 @@ void send_mping(int signo)
 	}
 
 	gettimeofday(&now, NULL);
-
         strlencpy(mping.version, VERSION, sizeof(mping.version));
 	mping.type             = SENDER;
 	mping.ttl              = arg_ttl;
@@ -434,6 +449,7 @@ void send_mping(int signo)
         mping.delay.tv_usec    = 0;
 
 	send_packet(&mping);
+	seqno++;
 
 	/* set another alarm call to send in 1 second */
 	signal(SIGALRM, send_mping);
@@ -658,7 +674,7 @@ int usage(void)
 {
 	fprintf(stderr,
 		"Usage:\n"
-                "  mping [-dhqrsv] [-c COUNT] [-i IFNAME] [-p PORT] [-t TTL] [-W SEC] [GROUP]\n"
+                "  mping [-dhqrsv] [-c COUNT] [-i IFNAME] [-p PORT] [-t TTL] [-w SEC] [-W SEC] [GROUP]\n"
                 "\n"
 		"Options:\n"
                 "  -c COUNT    Stop after sending/receiving COUNT packets\n"
@@ -672,6 +688,7 @@ int usage(void)
 		"  -t TTL      Multicast time to live to send, default %d\n"
 		"  -v          Show program version and contact information\n"
                 "  -W TIMEOUT  Time to wait for a response, in seconds, default 5\n"
+                "  -w DEADLINE Timeout before exiting, waiting for COUNT replies\n"
                 "\n"
                 "Defaults to use multicast group %s, UDP dst port %d, outbound\n"
                 "interface is chosen by the routing table, unless -i IFNAME\n",
@@ -688,7 +705,7 @@ int main(int argc, char **argv)
         int mode = 'r';
 	int c;
 
-	while ((c = getopt(argc, argv, "c:dh?i:p:qrst:vW:")) != -1) {
+	while ((c = getopt(argc, argv, "c:dh?i:p:qrst:vW:w:")) != -1) {
 		switch (c) {
                 case 'c':
                         arg_count = atoi(optarg);
@@ -734,6 +751,10 @@ int main(int argc, char **argv)
                         arg_timeout = atoi(optarg);
                         break;
 
+                case 'w':
+                        arg_deadline = atoi(optarg);
+                        break;
+
 		case '?':
 		case 'h':
 		default:
@@ -752,6 +773,7 @@ int main(int argc, char **argv)
         }
 
 	if (mode == 's') {
+		gettimeofday(&start, NULL);
 		printf("MPING %s:%d (ttl %d)\n", arg_mcaddr, arg_mcport, arg_ttl);
 
 		signal(SIGINT, clean_exit);
