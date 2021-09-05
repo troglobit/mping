@@ -33,6 +33,7 @@
 .Op Fl i Ar IFNAME
 .Op Fl p Ar PORT
 .Op Fl t Ar TTL
+.Op Fl w Ar SEC
 .Op Fl W Ar SEC
 .Op Ar GROUP
 .Sh DESCRIPTION
@@ -86,7 +87,15 @@ echo 2 | sudo tee /proc/sys/net/ipv4/conf/eth0/force_igmp_version
 .Sh OPTIONS
 .Bl -tag -width Ds
 .It Fl c Ar COUNT
-Stop sending/receiving after COUNT number of packets
+Stop sending/receiving after COUNT number of packets.  The sender
+.Nm
+has two modes of operation available.  The default is to exit after
+.Ar COUNT
+number of packets have been sent.  The other mode is to wait for
+.Ar COUNT
+packets to be recived.  See
+.Fl w
+option, below, for more information.
 .It Fl d
 Enable debug messages.
 .It Fl h
@@ -107,7 +116,15 @@ Act as sender, sends packets to select groups, default: no
 TTL to use when sending multicast packets, default: 1
 .It Fl v
 Show version information
-.It Fl W Ar SEC
+.It Fl w Ar DEADLINE
+Timeout, in seconds, before exiting, waiting for
+.Fl c Ar COUNT
+replies.  If
+.Ar COUNT
+replies are received before the deadline,
+.Nm
+exits.
+.It Fl W Ar TIMEOUT
 Timeout, in seconds, after the last received packet.
 .El
 .Sh SEE ALSO
