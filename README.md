@@ -54,6 +54,10 @@ Defaults to use multicast group 225.1.2.3, UDP dst port 4321, outbound
 interface is chosen by the routing table, unless -i IFNAME
 ```
 
+> **Note:** the `mping` receiver (currently) also needs to set the TTL
+> value, this is crucial in a routed setup or the reply is dropped.
+
+
 Origin
 ------
 
