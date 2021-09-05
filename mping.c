@@ -363,11 +363,12 @@ int ifinfo(char *iface, inet_addr_t *addr, int family)
 /* subtract sub from val and leave result in val */
 void subtract_timeval(struct timeval *val, const struct timeval *sub)
 {
-	if ((val->tv_usec -= sub->tv_usec) < 0) {
+	val->tv_sec  -= sub->tv_sec;
+	val->tv_usec -= sub->tv_usec;
+	if (val->tv_usec < 0) {
 		val->tv_sec--;
 		val->tv_usec += 1000000;
 	}
-	val->tv_sec -= sub->tv_sec;
 }
 
 /* return the timeval converted to a number of milliseconds */
