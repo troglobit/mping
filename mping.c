@@ -357,6 +357,22 @@ int ifinfo(char *iface, inet_addr_t *addr, int family)
 	return rc;
 }
 
+/* subtract sub from val and leave result in val */
+void subtract_timeval(struct timeval *val, const struct timeval *sub)
+{
+	if ((val->tv_usec -= sub->tv_usec) < 0) {
+		val->tv_sec--;
+		val->tv_usec += 1000000;
+	}
+	val->tv_sec -= sub->tv_sec;
+}
+
+/* return the timeval converted to a number of milliseconds */
+double timeval_to_ms(const struct timeval *val)
+{
+	return val->tv_sec * 1000.0 + val->tv_usec / 1000.0;
+}
+
 static void clean_exit(int signo)
 {
         (void)signo;
@@ -479,22 +495,6 @@ int process_mping(char *packet, int len, unsigned char type)
 	packets_rcvd++;
 
 	return 0;
-}
-
-/* subtract sub from val and leave result in val */
-void subtract_timeval(struct timeval *val, const struct timeval *sub)
-{
-	if ((val->tv_usec -= sub->tv_usec) < 0) {
-		val->tv_sec--;
-		val->tv_usec += 1000000;
-	}
-	val->tv_sec -= sub->tv_sec;
-}
-
-/* return the timeval converted to a number of milliseconds */
-double timeval_to_ms(const struct timeval *val)
-{
-	return val->tv_sec * 1000.0 + val->tv_usec / 1000.0;
 }
 
 void sender_listen_loop()
