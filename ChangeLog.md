@@ -3,6 +3,19 @@ ChangeLog
 
 All notable changes to the project are documented in this file.
 
+[v1.5][] - 2021-09-05
+---------------------
+
+### Changes
+- Update README, tips and usage section
+- Add `-w DEADLINE`, like regular ping(1) tool, this adds the ping(1)
+  behavior to the `-c COUNT` option, instead of exit after COUNT sent
+  mpings, we now wait DEADLINE seconds to *receive* COUNT mpings
+
+### Fixes
+- Don't exit with error if receiving more than COUNT packets
+
+
 [v1.4][] - 2021-08-31
 ---------------------
 
