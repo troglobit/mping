@@ -18,6 +18,11 @@ ping is sent by another mping.
 Multicast friendly network ---'
 ```
 
+> A multicast "friendly" network is one that supports multicast routing,
+> and/or supports IGMP/MLD snooping.  Remember: the reverse path is in
+> the unicast routing table (e.g., default route), the MULTICAST flag
+> on your interfaces, and ... the TTL in routed networks!
+
 By default, mping starts in receiver mode, joining the group given as
 command line argument.  To start as a sender, use `-s` and remember to
 set the `-t TTL` value greater than the number of routing "hops" when
