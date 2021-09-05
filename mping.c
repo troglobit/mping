@@ -84,13 +84,13 @@ unsigned int curr_pkt_count = 0;        /* packets heard so far this second */
 /* pointer to mping packet buffer */
 struct mping *rcvd_pkt;
 
-int   sd;			/* socket descriptor */
-pid_t pid;			/* pid of mping program */
+int   sd;                               /* socket descriptor */
+pid_t pid;                              /* our process id */
 
-struct sockaddr_in  mcaddr;	/* socket address structure */
-struct ip_mreqn     imr;	/* multicast request structure */
+struct sockaddr_in  mcaddr;
+struct ip_mreqn     imr;
 
-struct in_addr      myaddr;	/* address struct for local IP */
+struct in_addr      myaddr;
 
 /* counters and statistics variables */
 int packets_sent = 0;
