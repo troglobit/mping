@@ -3,6 +3,13 @@ ChangeLog
 
 All notable changes to the project are documented in this file.
 
+
+[v1.6][UNRELEASED]
+---------------------
+
+### Changes
+- Add Dockerfile with build + deploy to ghcr.io
+
 [v1.5][] - 2021-09-05
 ---------------------
 
@@ -53,5 +60,8 @@ v1.2 - 2014-06-20
 
 Initial version, available from the toolbox repo.
 
+[UNRELEASED]: https://github.com/troglobit/mping/compare/v1.5...HEAD
+[v1.6]: https://github.com/troglobit/mping/compare/v1.5...v1.6
+[v1.5]: https://github.com/troglobit/mping/compare/v1.4...v1.5
 [v1.4]: https://github.com/troglobit/mping/compare/v1.3...v1.4
 [v1.3]: https://github.com/troglobit/mping/compare/v1.2...v1.3
