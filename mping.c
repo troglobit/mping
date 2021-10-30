@@ -333,9 +333,6 @@ int ifinfo(char *iface, inet_addr_t *addr, int family)
 		if (!ifa->ifa_addr)
 			continue;
 
-		if (!(ifa->ifa_flags & IFF_MULTICAST))
-			continue;
-
 		if (family == AF_UNSPEC) {
 			if (ifa->ifa_addr->sa_family != AF_INET &&
 			    ifa->ifa_addr->sa_family != AF_INET6)
@@ -345,6 +342,11 @@ int ifinfo(char *iface, inet_addr_t *addr, int family)
 
 		if (iface && strcmp(iface, ifa->ifa_name))
 			continue;
+
+		if (!(ifa->ifa_flags & IFF_MULTICAST)) {
+			warnx("%s: not multicast capable.", iface);
+			break;
+		}
 
                 if (debug)
                         printf("Found %s addr %s\n", ifa->ifa_name,
