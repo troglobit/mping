@@ -121,11 +121,11 @@ void init_socket(int ifindex)
 
 	/* create a UDP socket */
 	if ((sd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
-		err(1, "receive socket() failed");
+		err(1, "failed creating UDP socket");
 
 	/* set reuse port to on to allow multiple binds per host */
 	if ((setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on))) < 0)
-		err(1, "setsockopt() failed");
+		err(1, "Failed enabling SO_REUSEADDR");
 
 	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &arg_ttl, sizeof(arg_ttl)) < 0)
 		err(1, "Failed setting IP_MULTICAST_TTL");
@@ -148,7 +148,7 @@ void init_socket(int ifindex)
 
 	/* send an ADD MEMBERSHIP message via setsockopt */
 	if ((setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imr, sizeof(imr))) < 0)
-		err(1, "setsockopt() failed");
+		err(1, "failed joining group %s on ifindex %d", arg_mcaddr, ifindex);
 
         if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &imr, sizeof(imr)))
                 err(1, "Failed setting IP_MULTICAST_IF %d", ifindex);
