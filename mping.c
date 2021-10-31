@@ -92,6 +92,9 @@ struct in_addr      myaddr;
 
 struct timeval      start;              /* start time for sender */
 
+/* Cleared by signal handler */
+volatile sig_atomic_t running = 1;
+
 /* counters and statistics variables */
 int packets_sent = 0;
 int packets_rcvd = 0;
@@ -387,10 +390,8 @@ double timeval_to_ms(const struct timeval *val)
 	return val->tv_sec * 1000.0 + val->tv_usec / 1000.0;
 }
 
-static void clean_exit(int signo)
+static int cleanup(void)
 {
-        (void)signo;
-
 	if ((setsockopt(sd, IPPROTO_IP, IP_DROP_MEMBERSHIP, &imr, sizeof(imr))) < 0)
 		err(1, "setsockopt() failed");
 
@@ -405,8 +406,15 @@ static void clean_exit(int signo)
 		       rtt_min, (rtt_total / packets_rcvd), rtt_max);
 
         if (arg_count > 0 && arg_count > packets_rcvd)
-                exit(1);
-	exit(0);
+                return 1;
+
+	return 0;
+}
+
+static void clean_exit(int signo)
+{
+	(void)signo;
+	running = 0;
 }
 
 void send_packet(struct mping *packet)
@@ -435,13 +443,14 @@ void send_mping(int signo)
         if (arg_deadline) {
 		struct timeval tv;
 
-		if (arg_count > 0 && packets_rcvd >= arg_count)
-                        clean_exit(0);
-
 		TIMESPEC_TO_TIMEVAL(&tv, &now);
                 subtract_timeval(&tv, &start);
-                if (tv.tv_sec >= arg_deadline)
-                        clean_exit(0);
+
+		if ((arg_count > 0 && packets_rcvd >= arg_count) ||
+		    (tv.tv_sec >= arg_deadline)) {
+			running = 0;
+			return;
+		}
 	} else if (arg_count > 0 && seqno >= arg_count) {
 		sig(SIGALRM, clean_exit);
 		alarm(arg_timeout);
@@ -520,7 +529,7 @@ void sender_listen_loop(void)
 {
 	send_mping(0);
 
-	while (1) {
+	while (running) {
                 char recv_packet[MAX_BUF_LEN + 1] = { 0 };
                 int len;
 
@@ -563,7 +572,7 @@ void receiver_listen_loop(void)
 {
 	printf("Listening on %s:%d\n", arg_mcaddr, arg_mcport);
 
-	while (1) {
+	while (running) {
                 char recv_packet[MAX_BUF_LEN + 1];
                 int len;
 
@@ -717,7 +726,7 @@ int main(int argc, char **argv)
 	} else
 		receiver_listen_loop();
 
-	return 0;
+	return cleanup();
 }
 
 /**
