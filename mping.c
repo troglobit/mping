@@ -39,6 +39,10 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#ifndef VERSION
+#define VERSION          "1.6"
+#endif
+
 #define MC_GROUP_DEFAULT "225.1.2.3"
 #define MC_PORT_DEFAULT  4321
 #define MC_TTL_DEFAULT   1

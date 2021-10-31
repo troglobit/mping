@@ -1,5 +1,5 @@
-VERSION   = 1.6
 NAME      = mping
+VERSION  := $(shell awk -F '"' '/define VERSION/ { print $$2; }' mping.c)
 PKG       = $(NAME)-$(VERSION)
 ARCHIVE   = $(PKG).tar.gz
 
@@ -10,7 +10,7 @@ mandir    = $(prefix)/share/man/man1
 MAN1      = mping.1
 DOCFILES  = README.md LICENSE
 
-CPPFLAGS ?= -W -Wall -Werror -DVERSION='"$(VERSION)"'
+CPPFLAGS ?= -W -Wall -Werror
 CFLAGS   ?= -g -O2 -std=gnu99
 
 all: $(NAME)
