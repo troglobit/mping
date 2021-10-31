@@ -11,6 +11,14 @@ All notable changes to the project are documented in this file.
 - Add Dockerfile with build + deploy to ghcr.io
 - Use `clock_gettime()` to reliably measure time instead of unreliable
   `gettimeofday()`, which only gives the (auto-)adjustable wall clock
+- Improved error messages from `init_socket()`, e.g. inform the user if
+  they are trying to use an interface without MULTICAST flag set
+- Replace `etime=` and `atime=` with ping-like `time=`.  This change is
+  actually a follow-up to [v1.3][] where the random delay in the receiver
+  was dropped
+- The mping `VERSION` define is now extracted from the sources rather
+  than defined in the Makefile.  This facilitates easier import in other
+  project's build systems and ensures the version is not lost
 
 
 [v1.5][] - 2021-09-05
