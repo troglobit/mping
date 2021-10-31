@@ -69,17 +69,8 @@ struct mping {
 	struct timeval  tv;
 } mping;
 
-struct resp {
-	struct mping    pkt;
-} *responses[RESPONSES_MAX];
-
-int empty_response = 0;
-
 /*#define BANDWIDTH 10000.0 */          /* bw in bytes/sec for mping */
 #define BANDWIDTH 100.0                 /* bw in bytes/sec for mping */
-
-unsigned int last_pkt_count = 0;        /* packets heard in last full second */
-unsigned int curr_pkt_count = 0;        /* packets heard so far this second */
 
 /* pointer to mping packet buffer */
 struct mping *rcvd_pkt;
@@ -480,8 +471,6 @@ int process_mping(char *packet, int len, unsigned char type)
 		return -1;
 	}
 
-	curr_pkt_count++;
-
 	if (rcvd_pkt->type != type) {
 		if (debug) {
 			switch (rcvd_pkt->type) {
@@ -556,48 +545,6 @@ void sender_listen_loop()
 	}
 }
 
-void check_send(int i)
-{
-	if (!quiet) {
-		size_t len = sizeof(responses[i]->pkt);
-		printf("Reply to mping from %s bytes=%zu seqno=%u ttl=%d\n",
-		       inet_ntoa(responses[i]->pkt.dest_host), len,
-		       ntohl(responses[i]->pkt.seq_no), responses[i]->pkt.ttl);
-	}
-
-	send_packet(&responses[i]->pkt);
-	free(responses[i]);
-	responses[i] = NULL;
-}
-
-void received_packet_count(int signo)
-{
-        (void)signo;
-
-	/* update the packet count for the last full second */
-	last_pkt_count = curr_pkt_count;
-	curr_pkt_count = 0;
-
-	/* check if the packets in the send buffer are ready to send */
-	for (int i = empty_response; i < RESPONSES_MAX; i++) {
-		if (responses[i] != NULL)
-			check_send(i);
-	}
-
-	if (empty_response != 0) {
-		for (int i = 0; i < empty_response; i++) {
-			if (responses[i] != NULL)
-				check_send(i);
-		}
-	}
-
-        if (arg_count > 0 && packets_sent >= arg_count)
-                exit(0);
-
-	signal(SIGALRM, received_packet_count);
-	alarm(1);
-}
-
 void receiver_listen_loop()
 {
 	printf("Listening on %s:%d\n", arg_mcaddr, arg_mcport);
@@ -614,41 +561,23 @@ void receiver_listen_loop()
 		}
 
 		if (process_mping(recv_packet, len, SENDER) == 0) {
-                        int i;
-
                         if (!quiet)
                                 printf("Received mping from %s bytes=%d seqno=%u ttl=%d\n",
                                        inet_ntoa(rcvd_pkt->src_host), len,
                                        rcvd_pkt->seq_no, rcvd_pkt->ttl);
 
-			i = empty_response;
-			if (responses[i] != NULL) {
-				if (debug)
-					printf("Buffer full, packet dropped\n");
-				continue;
-			}
-
-			responses[i] = (struct resp *)malloc(sizeof(struct resp));
-                        if (responses[i] == NULL)
-                                err(1, "Failed allocating response %d", i);
-
-			strlencpy(responses[i]->pkt.version, VERSION, sizeof(responses[i]->pkt.version));
-			responses[i]->pkt.type             = RECEIVER;
-			responses[i]->pkt.ttl              = rcvd_pkt->ttl;
-			responses[i]->pkt.src_host.s_addr  = myaddr.s_addr;
-			responses[i]->pkt.dest_host.s_addr = rcvd_pkt->src_host.s_addr;
-			responses[i]->pkt.seq_no           = htonl(rcvd_pkt->seq_no);
-			responses[i]->pkt.pid              = rcvd_pkt->pid;
-			responses[i]->pkt.tv.tv_sec        = htonl(rcvd_pkt->tv.tv_sec);
-			responses[i]->pkt.tv.tv_usec       = htonl(rcvd_pkt->tv.tv_usec);
+			rcvd_pkt->type             = RECEIVER;
+			rcvd_pkt->src_host.s_addr  = myaddr.s_addr;
+			rcvd_pkt->dest_host.s_addr = rcvd_pkt->src_host.s_addr;
+			rcvd_pkt->seq_no           = htonl(rcvd_pkt->seq_no);
+			rcvd_pkt->tv.tv_sec        = htonl(rcvd_pkt->tv.tv_sec);
+			rcvd_pkt->tv.tv_usec       = htonl(rcvd_pkt->tv.tv_usec);
 
                         /* send reply immediately */
-                        received_packet_count(0);
+			send_packet(rcvd_pkt);
 
-			/* increment response buffer pointer */
-			empty_response++;
-			if (empty_response >= RESPONSES_MAX)
-				empty_response = 0;
+			if (arg_count > 0 && packets_sent >= arg_count)
+				exit(0);
 		}
 	}
 }
@@ -768,12 +697,6 @@ int main(int argc, char **argv)
 
 		sender_listen_loop();
 	} else {
-		for (int i = 0; i < RESPONSES_MAX; i++)
-			responses[i] = NULL;
-
-		signal(SIGALRM, received_packet_count);
-		alarm(1);
-
 		receiver_listen_loop();
 	}
 
