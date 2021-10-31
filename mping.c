@@ -309,37 +309,49 @@ fallback:
 /* Find IP address of default outbound LAN interface */
 int ifinfo(char *iface, inet_addr_t *addr, int family)
 {
-	struct ifaddrs *ifaddr, *ifa;
-	char ifname[17] = { 0 };
 	char buf[INET_ADDRSTR_LEN] = { 0 };
+	struct ifaddrs *ifaddr, *ifa;
+	char ifname[16] = { 0 };
+	int found = 0;
 	int rc = -1;
 
 	if (!iface || !iface[0])
 		iface = ifdefault(ifname, sizeof(ifname));
-	if (!iface)
-		return -2;
+	if (!iface || !iface[0])
+		errx(1, "no suitable default interface available");
 
 	rc = getifaddrs(&ifaddr);
 	if (rc == -1)
-		return -3;
+		err(1, "failed querying available interfaces");
 
 	rc = -1; /* Return -1 if iface with family is not found */
 	for (ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
-		if (!ifa->ifa_addr)
+		if (strcmp(iface, ifa->ifa_name))
 			continue;
+
+		found = 1;
+		if (!(ifa->ifa_flags & IFF_UP)) {
+			dbg("%s is not UP, skipping ...", iface);
+			continue;
+		}
+
+		if (!ifa->ifa_addr) {
+			dbg("%s has no address, skipping ...", iface);
+			continue;
+		}
 
 		if (family == AF_UNSPEC) {
 			if (ifa->ifa_addr->sa_family != AF_INET &&
 			    ifa->ifa_addr->sa_family != AF_INET6)
+				dbg("%s no IPv4 or IPv6 address, skipping ...", iface);
 				continue;
-		} else if (ifa->ifa_addr->sa_family != family)
+		} else if (ifa->ifa_addr->sa_family != family) {
+			dbg("%s not matching address family, skipping ...", iface);
 			continue;
-
-		if (iface && strcmp(iface, ifa->ifa_name))
-			continue;
+		}
 
 		if (!(ifa->ifa_flags & IFF_MULTICAST)) {
-			warnx("%s: not multicast capable.", iface);
+			warnx("%s is not multicast capable, check interface flags.", iface);
 			break;
 		}
 
@@ -350,6 +362,9 @@ int ifinfo(char *iface, inet_addr_t *addr, int family)
 		break;
 	}
 	freeifaddrs(ifaddr);
+
+	if (!found)
+		warnx("no such interface %s.", iface);
 
 	return rc;
 }
@@ -612,6 +627,7 @@ int main(int argc, char **argv)
         inet_addr_t addr;
 	char ifname[16];
         int mode = 'r';
+	int ifindex;
 	int c;
 
 	while ((c = getopt(argc, argv, "c:dh?i:p:qrst:vW:w:")) != -1) {
@@ -675,7 +691,11 @@ int main(int argc, char **argv)
                 strlencpy(arg_mcaddr, argv[optind], sizeof(arg_mcaddr));
 
 	pid = getpid();
-	init_socket(ifinfo(iface, &addr, AF_INET));
+	ifindex = ifinfo(iface, &addr, AF_INET);
+	if (ifindex <= 0)
+		exit(1);
+
+	init_socket(ifindex);
         if (addr.ss_family == AF_INET) {
                 struct sockaddr_in *sin = (struct sockaddr_in *)&addr;
                 myaddr = sin->sin_addr;
