@@ -434,14 +434,14 @@ void send_mping(int signo)
 
 	TIMESPEC_TO_TIMEVAL(&mping.tv, &now);
         strlencpy(mping.version, VERSION, sizeof(mping.version));
-	mping.type             = SENDER;
-	mping.ttl              = arg_ttl;
-	mping.src_host.s_addr  = myaddr.s_addr;
-	mping.dest_host.s_addr = inet_addr(arg_mcaddr);
-	mping.seq_no           = htonl(seqno);
-	mping.pid              = pid;
-	mping.tv.tv_sec        = htonl(mping.tv.tv_sec);
-	mping.tv.tv_usec       = htonl(mping.tv.tv_usec);
+	mping.type       = SENDER;
+	mping.ttl        = arg_ttl;
+	mping.src_host   = myaddr;
+	mping.dest_host  = mcaddr.sin_addr;
+	mping.seq_no     = htonl(seqno);
+	mping.pid        = pid;
+	mping.tv.tv_sec  = htonl(mping.tv.tv_sec);
+	mping.tv.tv_usec = htonl(mping.tv.tv_usec);
 
 	send_packet(&mping);
 	seqno++;
@@ -566,12 +566,12 @@ void receiver_listen_loop()
                                        inet_ntoa(rcvd_pkt->src_host), len,
                                        rcvd_pkt->seq_no, rcvd_pkt->ttl);
 
-			rcvd_pkt->type             = RECEIVER;
-			rcvd_pkt->src_host.s_addr  = myaddr.s_addr;
-			rcvd_pkt->dest_host.s_addr = rcvd_pkt->src_host.s_addr;
-			rcvd_pkt->seq_no           = htonl(rcvd_pkt->seq_no);
-			rcvd_pkt->tv.tv_sec        = htonl(rcvd_pkt->tv.tv_sec);
-			rcvd_pkt->tv.tv_usec       = htonl(rcvd_pkt->tv.tv_usec);
+			rcvd_pkt->type       = RECEIVER;
+			rcvd_pkt->src_host   = myaddr;
+			rcvd_pkt->dest_host  = rcvd_pkt->src_host;
+			rcvd_pkt->seq_no     = htonl(rcvd_pkt->seq_no);
+			rcvd_pkt->tv.tv_sec  = htonl(rcvd_pkt->tv.tv_sec);
+			rcvd_pkt->tv.tv_usec = htonl(rcvd_pkt->tv.tv_usec);
 
                         /* send reply immediately */
 			send_packet(rcvd_pkt);
