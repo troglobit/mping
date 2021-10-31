@@ -516,7 +516,7 @@ int process_mping(char *packet, int len, unsigned char type)
 	return 0;
 }
 
-void sender_listen_loop()
+void sender_listen_loop(void)
 {
 	send_mping(0);
 
@@ -559,7 +559,7 @@ void sender_listen_loop()
 	}
 }
 
-void receiver_listen_loop()
+void receiver_listen_loop(void)
 {
 	printf("Listening on %s:%d\n", arg_mcaddr, arg_mcport);
 
@@ -674,12 +674,12 @@ int main(int argc, char **argv)
                                "Project homepage:   https://github.com/troglobit/mping/\n", VERSION);
 			return 0;
 
-                case 'W':
-                        arg_timeout = atoi(optarg);
-                        break;
-
                 case 'w':
                         arg_deadline = atoi(optarg);
+                        break;
+
+                case 'W':
+                        arg_timeout = atoi(optarg);
                         break;
 
 		case '?':
@@ -714,9 +714,8 @@ int main(int argc, char **argv)
 		sig(SIGALRM, send_mping);
 
 		sender_listen_loop();
-	} else {
+	} else
 		receiver_listen_loop();
-	}
 
 	return 0;
 }
