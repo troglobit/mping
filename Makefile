@@ -10,7 +10,7 @@ mandir    = $(prefix)/share/man/man1
 MAN1      = mping.1
 DOCFILES  = README.md LICENSE
 
-CPPFLAGS ?= -W -Wall -Werror
+CPPFLAGS ?= -W -Wall -Wextra
 CFLAGS   ?= -g -O2 -std=gnu99
 
 all: $(NAME)
