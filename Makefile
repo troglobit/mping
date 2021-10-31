@@ -1,4 +1,4 @@
-VERSION   = 1.5
+VERSION   = 1.6
 NAME      = mping
 PKG       = $(NAME)-$(VERSION)
 ARCHIVE   = $(PKG).tar.gz
