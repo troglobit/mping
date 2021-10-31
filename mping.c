@@ -67,12 +67,10 @@ struct mping {
 	pid_t           pid;
 
 	struct timeval  tv;
-	struct timeval  delay;
 } mping;
 
 struct resp {
 	struct mping    pkt;
-	struct timeval  send_time;
 } *responses[RESPONSES_MAX];
 
 int empty_response = 0;
@@ -453,8 +451,6 @@ void send_mping(int signo)
 	mping.pid              = pid;
 	mping.tv.tv_sec        = htonl(mping.tv.tv_sec);
 	mping.tv.tv_usec       = htonl(mping.tv.tv_usec);
-        mping.delay.tv_sec     = 0;
-        mping.delay.tv_usec    = 0;
 
 	send_packet(&mping);
 	seqno++;
@@ -477,8 +473,6 @@ int process_mping(char *packet, int len, unsigned char type)
 	rcvd_pkt->seq_no        = ntohl(rcvd_pkt->seq_no);
 	rcvd_pkt->tv.tv_sec     = ntohl(rcvd_pkt->tv.tv_sec);
 	rcvd_pkt->tv.tv_usec    = ntohl(rcvd_pkt->tv.tv_usec);
-	rcvd_pkt->delay.tv_sec  = ntohl(rcvd_pkt->delay.tv_sec);
-	rcvd_pkt->delay.tv_usec = ntohl(rcvd_pkt->delay.tv_usec);
 
 	if (strcmp(rcvd_pkt->version, VERSION)) {
 		if (debug)
@@ -536,7 +530,6 @@ void sender_listen_loop()
 		if (process_mping(recv_packet, len, RECEIVER) == 0) {
 			struct timespec now;
                         struct timeval tv;
-                        double actual_rtt;	/* rtt - send interval delay */
                         double rtt;		/* round trip time */
 
                         clock_gettime(CLOCK_MONOTONIC, &now);
@@ -546,23 +539,18 @@ void sender_listen_loop()
 			subtract_timeval(&tv, &rcvd_pkt->tv);
 			rtt = timeval_to_ms(&tv);
 
-			/* remove the backoff delay to determine actual rtt */
-			subtract_timeval(&tv, &rcvd_pkt->delay);
-			actual_rtt = timeval_to_ms(&tv);
-
 			/* keep rtt total, min and max */
-			rtt_total += actual_rtt;
-			if (actual_rtt > rtt_max)
-				rtt_max = actual_rtt;
-			if (actual_rtt < rtt_min)
-				rtt_min = actual_rtt;
+			rtt_total += rtt;
+			if (rtt > rtt_max)
+				rtt_max = rtt;
+			if (rtt < rtt_min)
+				rtt_min = rtt;
 
 			/* output received packet information */
                         if (!quiet) {
-                                printf("%d bytes from %s: seqno=%u ttl=%d ",
+                                printf("%d bytes from %s: seqno=%u ttl=%d time=%.1f ms\n",
                                        len, inet_ntoa(rcvd_pkt->src_host),
-                                       rcvd_pkt->seq_no, rcvd_pkt->ttl);
-                                printf("etime=%.1f ms atime=%.3f ms\n", rtt, actual_rtt);
+                                       rcvd_pkt->seq_no, rcvd_pkt->ttl, rtt);
                         }
 		}
 	}
@@ -570,30 +558,16 @@ void sender_listen_loop()
 
 void check_send(int i)
 {
-	struct timespec now;
-	struct timeval tv;
-
-	clock_gettime(CLOCK_MONOTONIC, &now);
-	TIMESPEC_TO_TIMEVAL(&tv, &now);
-
-	if ((responses[i]->send_time.tv_sec < tv.tv_sec) ||
-	    ((responses[i]->send_time.tv_sec == tv.tv_sec) &&
-	     (responses[i]->send_time.tv_usec <= tv.tv_usec))) {
-                size_t len = sizeof(responses[i]->pkt);
-
-                if (!quiet)
-                        printf("Reply to mping from %s bytes=%zu seqno=%u ttl=%d\n",
-                               inet_ntoa(responses[i]->pkt.dest_host), len,
-                               ntohl(responses[i]->pkt.seq_no), responses[i]->pkt.ttl);
-
-		subtract_timeval(&tv, &responses[i]->pkt.delay);
-		responses[i]->pkt.delay.tv_sec = htonl(tv.tv_sec);
-		responses[i]->pkt.delay.tv_usec = htonl(tv.tv_usec);
-
-		send_packet(&responses[i]->pkt);
-		free(responses[i]);
-		responses[i] = NULL;
+	if (!quiet) {
+		size_t len = sizeof(responses[i]->pkt);
+		printf("Reply to mping from %s bytes=%zu seqno=%u ttl=%d\n",
+		       inet_ntoa(responses[i]->pkt.dest_host), len,
+		       ntohl(responses[i]->pkt.seq_no), responses[i]->pkt.ttl);
 	}
+
+	send_packet(&responses[i]->pkt);
+	free(responses[i]);
+	responses[i] = NULL;
 }
 
 void received_packet_count(int signo)
@@ -640,7 +614,6 @@ void receiver_listen_loop()
 		}
 
 		if (process_mping(recv_packet, len, SENDER) == 0) {
-			struct timespec now;
                         int i;
 
                         if (!quiet)
@@ -668,11 +641,6 @@ void receiver_listen_loop()
 			responses[i]->pkt.pid              = rcvd_pkt->pid;
 			responses[i]->pkt.tv.tv_sec        = htonl(rcvd_pkt->tv.tv_sec);
 			responses[i]->pkt.tv.tv_usec       = htonl(rcvd_pkt->tv.tv_usec);
-
-			clock_gettime(CLOCK_MONOTONIC, &now);
-			TIMESPEC_TO_TIMEVAL(&responses[i]->send_time, &now);
-
-			responses[i]->pkt.delay = responses[i]->send_time;
 
                         /* send reply immediately */
                         received_packet_count(0);
