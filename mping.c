@@ -43,6 +43,8 @@
 #define VERSION          "1.6"
 #endif
 
+#define dbg(fmt,args...) do { if (debug) printf(fmt "\n", ##args); } while (0)
+
 #define MC_GROUP_DEFAULT "225.1.2.3"
 #define MC_PORT_DEFAULT  4321
 #define MC_TTL_DEFAULT   1
@@ -205,8 +207,7 @@ static char *ifany(char *iface, size_t len)
 			continue;
 
 		ifindex = if_nametoindex(ifa->ifa_name);
-                if (debug)
-                        printf("Found iface %s, ifindex %d\n", ifa->ifa_name, ifindex);
+                dbg("Found iface %s, ifindex %d", ifa->ifa_name, ifindex);
 		strncpy(iface, ifa->ifa_name, len);
 		iface[len] = 0;
 		break;
@@ -293,8 +294,7 @@ char *ifdefault(char *iface, size_t len)
 			best = metric;
 			found = 1;
 
-                        if (debug)
-                                printf("Found default intefaces %s\n", iface);
+                        dbg("Found default inteface %s", iface);
 		}
 	}
 
@@ -343,13 +343,10 @@ int ifinfo(char *iface, inet_addr_t *addr, int family)
 			break;
 		}
 
-                if (debug)
-                        printf("Found %s addr %s\n", ifa->ifa_name,
-                               inet_address((inet_addr_t *)ifa->ifa_addr, buf, sizeof(buf)));
+		dbg("Found %s addr %s", ifa->ifa_name, inet_address((inet_addr_t *)ifa->ifa_addr, buf, sizeof(buf)));
 		*addr = *(inet_addr_t *)ifa->ifa_addr;
 		rc = if_nametoindex(ifa->ifa_name);
-                if (debug)
-                        printf("iface %s, ifindex %d, addr %s\n", ifa->ifa_name, rc, buf);
+                dbg("iface %s, ifindex %d, addr %s", ifa->ifa_name, rc, buf);
 		break;
 	}
 	freeifaddrs(ifaddr);
@@ -458,9 +455,7 @@ void send_mping(int signo)
 int process_mping(char *packet, int len, unsigned char type)
 {
 	if (len < (int)sizeof(struct mping)) {
-		if (debug)
-			printf("Discarding packet: too small (%zu bytes)\n", strlen(packet));
-
+		dbg("Discarding packet: too small (%zu bytes)", strlen(packet));
 		return -1;
 	}
 
@@ -470,8 +465,7 @@ int process_mping(char *packet, int len, unsigned char type)
 	rcvd_pkt->tv.tv_usec    = ntohl(rcvd_pkt->tv.tv_usec);
 
 	if (strcmp(rcvd_pkt->version, VERSION)) {
-		if (debug)
-			printf("Discarding packet: version mismatch (%s)\n", rcvd_pkt->version);
+		dbg("Discarding packet: version mismatch (%s)", rcvd_pkt->version);
 		return -1;
 	}
 
@@ -497,8 +491,7 @@ int process_mping(char *packet, int len, unsigned char type)
 
 	if (rcvd_pkt->type == RECEIVER) {
 		if (rcvd_pkt->pid != pid) {
-			if (debug)
-				printf("Discarding packet: pid mismatch (%u/%u)\n", pid, rcvd_pkt->pid);
+			dbg("Discarding packet: pid mismatch (%u/%u)", pid, rcvd_pkt->pid);
 			return -1;
 		}
 	}
