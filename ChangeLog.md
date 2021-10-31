@@ -9,6 +9,9 @@ All notable changes to the project are documented in this file.
 
 ### Changes
 - Add Dockerfile with build + deploy to ghcr.io
+- Use `clock_gettime()` to reliably measure time instead of unreliable
+  `gettimeofday()`, which only gives the (auto-)adjustable wall clock
+
 
 [v1.5][] - 2021-09-05
 ---------------------

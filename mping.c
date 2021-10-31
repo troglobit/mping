@@ -19,6 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#define _GNU_SOURCE		/* For TIMESPEC_TO_TIMEVAL() in GLIBC */
 #include <err.h>
 #include <errno.h>
 #include <ifaddrs.h>
@@ -29,6 +30,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#include <time.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <net/if.h>
@@ -414,9 +416,10 @@ void send_packet(struct mping *packet)
 void send_mping(int signo)
 {
 	static int seqno = 0;
-	struct timeval now;
+	struct timespec now;
 
         (void)signo;
+	clock_gettime(CLOCK_MONOTONIC, &now);
 
         /*
          * Tracks number of sent mpings.  If deadline mode is enabled we
@@ -424,12 +427,14 @@ void send_mping(int signo)
          * deadline timeout.
          */
         if (arg_deadline) {
+		struct timeval tv;
+
 		if (arg_count > 0 && packets_rcvd >= arg_count)
                         clean_exit(0);
 
-                gettimeofday(&now, NULL);
-                subtract_timeval(&now, &start);
-                if (now.tv_sec >= arg_deadline)
+		TIMESPEC_TO_TIMEVAL(&tv, &now);
+                subtract_timeval(&tv, &start);
+                if (tv.tv_sec >= arg_deadline)
                         clean_exit(0);
 	} else if (arg_count > 0 && seqno >= arg_count) {
 		/* set another alarm call to exit in 5 second */
@@ -438,7 +443,7 @@ void send_mping(int signo)
 		return;
 	}
 
-	gettimeofday(&now, NULL);
+	TIMESPEC_TO_TIMEVAL(&mping.tv, &now);
         strlencpy(mping.version, VERSION, sizeof(mping.version));
 	mping.type             = SENDER;
 	mping.ttl              = arg_ttl;
@@ -446,8 +451,8 @@ void send_mping(int signo)
 	mping.dest_host.s_addr = inet_addr(arg_mcaddr);
 	mping.seq_no           = htonl(seqno);
 	mping.pid              = pid;
-	mping.tv.tv_sec        = htonl(now.tv_sec);
-	mping.tv.tv_usec       = htonl(now.tv_usec);
+	mping.tv.tv_sec        = htonl(mping.tv.tv_sec);
+	mping.tv.tv_usec       = htonl(mping.tv.tv_usec);
         mping.delay.tv_sec     = 0;
         mping.delay.tv_usec    = 0;
 
@@ -529,19 +534,21 @@ void sender_listen_loop()
 		}
 
 		if (process_mping(recv_packet, len, RECEIVER) == 0) {
-                        struct timeval now;
+			struct timespec now;
+                        struct timeval tv;
                         double actual_rtt;	/* rtt - send interval delay */
                         double rtt;		/* round trip time */
 
-                        gettimeofday(&now, NULL);
+                        clock_gettime(CLOCK_MONOTONIC, &now);
+			TIMESPEC_TO_TIMEVAL(&tv, &now);
 
 			/* calculate round trip time in milliseconds */
-			subtract_timeval(&now, &rcvd_pkt->tv);
-			rtt = timeval_to_ms(&now);
+			subtract_timeval(&tv, &rcvd_pkt->tv);
+			rtt = timeval_to_ms(&tv);
 
 			/* remove the backoff delay to determine actual rtt */
-			subtract_timeval(&now, &rcvd_pkt->delay);
-			actual_rtt = timeval_to_ms(&now);
+			subtract_timeval(&tv, &rcvd_pkt->delay);
+			actual_rtt = timeval_to_ms(&tv);
 
 			/* keep rtt total, min and max */
 			rtt_total += actual_rtt;
@@ -563,12 +570,15 @@ void sender_listen_loop()
 
 void check_send(int i)
 {
-	struct timeval now;
+	struct timespec now;
+	struct timeval tv;
 
-	gettimeofday(&now, NULL);
-	if ((responses[i]->send_time.tv_sec < now.tv_sec) ||
-	    ((responses[i]->send_time.tv_sec == now.tv_sec) &&
-	     (responses[i]->send_time.tv_usec <= now.tv_usec))) {
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	TIMESPEC_TO_TIMEVAL(&tv, &now);
+
+	if ((responses[i]->send_time.tv_sec < tv.tv_sec) ||
+	    ((responses[i]->send_time.tv_sec == tv.tv_sec) &&
+	     (responses[i]->send_time.tv_usec <= tv.tv_usec))) {
                 size_t len = sizeof(responses[i]->pkt);
 
                 if (!quiet)
@@ -576,9 +586,9 @@ void check_send(int i)
                                inet_ntoa(responses[i]->pkt.dest_host), len,
                                ntohl(responses[i]->pkt.seq_no), responses[i]->pkt.ttl);
 
-		subtract_timeval(&now, &responses[i]->pkt.delay);
-		responses[i]->pkt.delay.tv_sec = htonl(now.tv_sec);
-		responses[i]->pkt.delay.tv_usec = htonl(now.tv_usec);
+		subtract_timeval(&tv, &responses[i]->pkt.delay);
+		responses[i]->pkt.delay.tv_sec = htonl(tv.tv_sec);
+		responses[i]->pkt.delay.tv_usec = htonl(tv.tv_usec);
 
 		send_packet(&responses[i]->pkt);
 		free(responses[i]);
@@ -630,6 +640,7 @@ void receiver_listen_loop()
 		}
 
 		if (process_mping(recv_packet, len, SENDER) == 0) {
+			struct timespec now;
                         int i;
 
                         if (!quiet)
@@ -658,7 +669,8 @@ void receiver_listen_loop()
 			responses[i]->pkt.tv.tv_sec        = htonl(rcvd_pkt->tv.tv_sec);
 			responses[i]->pkt.tv.tv_usec       = htonl(rcvd_pkt->tv.tv_usec);
 
-			gettimeofday(&responses[i]->send_time, NULL);
+			clock_gettime(CLOCK_MONOTONIC, &now);
+			TIMESPEC_TO_TIMEVAL(&responses[i]->send_time, &now);
 
 			responses[i]->pkt.delay = responses[i]->send_time;
 
@@ -776,7 +788,10 @@ int main(int argc, char **argv)
         }
 
 	if (mode == 's') {
-		gettimeofday(&start, NULL);
+		struct timespec now;
+
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		TIMESPEC_TO_TIMEVAL(&start, &now);
 		printf("MPING %s:%d (ttl %d)\n", arg_mcaddr, arg_mcport, arg_ttl);
 
 		signal(SIGINT, clean_exit);
