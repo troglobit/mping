@@ -44,6 +44,7 @@
 #endif
 
 #define dbg(fmt,args...) do { if (debug) printf(fmt "\n", ##args); } while (0)
+#define sig(s,c)    do { struct sigaction a = {.sa_handler=c};sigaction(s,&a,0); } while(0)
 
 #define MC_GROUP_DEFAULT "225.1.2.3"
 #define MC_PORT_DEFAULT  4321
@@ -442,8 +443,7 @@ void send_mping(int signo)
                 if (tv.tv_sec >= arg_deadline)
                         clean_exit(0);
 	} else if (arg_count > 0 && seqno >= arg_count) {
-		/* set another alarm call to exit in 5 second */
-		signal(SIGALRM, clean_exit);
+		sig(SIGALRM, clean_exit);
 		alarm(arg_timeout);
 		return;
 	}
@@ -463,7 +463,7 @@ void send_mping(int signo)
 	seqno++;
 
 	/* set another alarm call to send in 1 second */
-	signal(SIGALRM, send_mping);
+	sig(SIGALRM, send_mping);
 	alarm(1);
 }
 
@@ -518,6 +518,8 @@ int process_mping(char *packet, int len, unsigned char type)
 
 void sender_listen_loop()
 {
+	send_mping(0);
+
 	while (1) {
                 char recv_packet[MAX_BUF_LEN + 1] = { 0 };
                 int len;
@@ -708,9 +710,8 @@ int main(int argc, char **argv)
 		TIMESPEC_TO_TIMEVAL(&start, &now);
 		printf("MPING %s:%d (ttl %d)\n", arg_mcaddr, arg_mcport, arg_ttl);
 
-		signal(SIGINT, clean_exit);
-		signal(SIGALRM, send_mping);
-		send_mping(SIGALRM);
+		sig(SIGINT, clean_exit);
+		sig(SIGALRM, send_mping);
 
 		sender_listen_loop();
 	} else {
