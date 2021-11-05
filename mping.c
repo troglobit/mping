@@ -19,7 +19,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE		/* For TIMESPEC_TO_TIMEVAL() in GLIBC */
+#endif
 #include <err.h>
 #include <errno.h>
 #include <ifaddrs.h>
