@@ -47,4 +47,6 @@ distclean: clean
 	-$(RM) *~
 
 release: dist
-	(cd ..; md5sum $(ARCHIVE) > $(ARCHIVE).md5)
+	(cd ..; \
+		md5sum    $(ARCHIVE) > $(ARCHIVE).md5; \
+		sha256sum $(ARCHIVE) > $(ARCHIVE).sha256)
