@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021  Joachim Wiberg <troglobit@gmail.com>
+ * Copyright (c) 2021-2022  Joachim Wiberg <troglobit@gmail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -42,13 +42,14 @@
 #include <sys/types.h>
 
 #ifndef VERSION
-#define VERSION          "1.6"
+#define VERSION          "2.0"
 #endif
 
 #define dbg(fmt,args...) do { if (debug) printf(fmt "\n", ##args); } while (0)
 #define sig(s,c)    do { struct sigaction a = {.sa_handler=c};sigaction(s,&a,0); } while(0)
 
 #define MC_GROUP_DEFAULT "225.1.2.3"
+#define MC_GROUP_INET6   "ff2e::42"
 #define MC_PORT_DEFAULT  4321
 #define MC_TTL_DEFAULT   1
 
@@ -69,8 +70,8 @@ struct mping {
 	unsigned char   type;
 	unsigned char   ttl;
 
-	struct in_addr  src_host;
-	struct in_addr  dest_host;
+	inet_addr_t     src_host;
+	inet_addr_t     dest_host;
 
 	unsigned int    seq_no;
 	pid_t           pid;
@@ -87,15 +88,21 @@ struct mping *rcvd_pkt;
 int   sd;                               /* socket descriptor */
 pid_t pid;                              /* our process id */
 
-struct sockaddr_in  mcaddr;
-struct ip_mreqn     imr;
-
-struct in_addr      myaddr;
+inet_addr_t         myaddr;
+inet_addr_t         mcaddr;
+int                 ipproto;
+struct group_req    gr;
 
 struct timeval      start;              /* start time for sender */
 
 /* Cleared by signal handler */
 volatile sig_atomic_t running = 1;
+
+#ifdef AF_INET6
+#define OPTSTR     "6"
+#else
+#define OPTSTR     ""
+#endif
 
 /* counters and statistics variables */
 int packets_sent = 0;
@@ -106,7 +113,7 @@ double rtt_max   = 0;
 double rtt_min   = 999999999.0;
 
 /* default command-line arguments */
-char          arg_mcaddr[16] = MC_GROUP_DEFAULT;
+char          arg_mcaddr[INET_ADDRSTR_LEN] = MC_GROUP_DEFAULT;
 int           arg_mcport     = MC_PORT_DEFAULT;
 int           arg_count      = -1;
 int           arg_timeout    = 5;
@@ -116,45 +123,57 @@ unsigned char arg_ttl        = MC_TTL_DEFAULT;
 int debug = 0;
 int quiet = 0;
 
-
-void init_socket(int ifindex)
+static void init_socket(int family, int ifindex)
 {
 	int off = 0;
 	int on = 1;
 
 	/* create a UDP socket */
-	if ((sd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+	if ((sd = socket(family, SOCK_DGRAM, IPPROTO_UDP)) < 0)
 		err(1, "failed creating UDP socket");
 
 	/* set reuse port to on to allow multiple binds per host */
 	if ((setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on))) < 0)
 		err(1, "Failed enabling SO_REUSEADDR");
 
-	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &arg_ttl, sizeof(arg_ttl)) < 0)
-		err(1, "Failed setting IP_MULTICAST_TTL");
+#ifdef AF_INET6
+	if (family == AF_INET6) {
+		int hops = arg_ttl;
 
-	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &off, sizeof(off)) < 0)
-		err(1, "Failed disabling IP_MULTICAST_LOOP");
+		ipproto = IPPROTO_IPV6;
 
-	/* construct a multicast address structure */
-	mcaddr.sin_family = AF_INET;
-	mcaddr.sin_addr.s_addr = inet_addr(arg_mcaddr);
-	mcaddr.sin_port = htons(arg_mcport);
+		if (setsockopt(sd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &hops, sizeof(hops)))
+			err(1, "Failed setting IPV6_MULTICAST_HOPS: %s", strerror(errno));
+
+		if (setsockopt(sd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifindex, sizeof(ifindex)))
+			err(1, "Failed setting IPV6_MULTICAST_IF: %s", strerror(errno));
+	} else
+#endif
+	{
+		struct ip_mreqn imr = { .imr_ifindex = ifindex };
+
+		ipproto = IPPROTO_IP;
+
+		if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &arg_ttl, sizeof(arg_ttl)))
+			err(1, "Failed setting IP_MULTICAST_TTL");
+
+		if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &off, sizeof(off)) < 0)
+			err(1, "Failed disabling IP_MULTICAST_LOOP");
+
+		if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &imr, sizeof(imr)))
+			err(1, "Failed setting IP_MULTICAST_IF %d", ifindex);
+	}
 
 	/* bind to multicast address to socket */
 	if ((bind(sd, (struct sockaddr *)&mcaddr, sizeof(mcaddr))) < 0)
 		err(1, "bind() failed");
 
-	/* construct a IGMP join request structure */
-	imr.imr_multiaddr.s_addr = inet_addr(arg_mcaddr);
-	imr.imr_ifindex = ifindex;
-
-	/* send an ADD MEMBERSHIP message via setsockopt */
-	if ((setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &imr, sizeof(imr))) < 0)
+	/* construct a IGMP/MLD join request structure */
+	memset(&gr, 0, sizeof(gr));
+	gr.gr_group     = mcaddr;
+	gr.gr_interface = ifindex;
+	if ((setsockopt(sd, ipproto, MCAST_JOIN_GROUP, &gr, sizeof(gr))) < 0)
 		err(1, "failed joining group %s on ifindex %d", arg_mcaddr, ifindex);
-
-        if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &imr, sizeof(imr)))
-                err(1, "Failed setting IP_MULTICAST_IF %d", ifindex);
 }
 
 static size_t strlencpy(char *dst, const char *src, size_t len)
@@ -176,7 +195,13 @@ static size_t strlencpy(char *dst, const char *src, size_t len)
 
 const char *inet_address(inet_addr_t *ss, char *buf, size_t len)
 {
+	static char fallback[INET_ADDRSTR_LEN];
 	struct sockaddr_in *sin;
+
+	if (!buf) {
+		buf = fallback;
+		len = sizeof(fallback);
+	}
 
 #ifdef AF_INET6
 	if (ss->ss_family == AF_INET6) {
@@ -187,6 +212,35 @@ const char *inet_address(inet_addr_t *ss, char *buf, size_t len)
 
 	sin = (struct sockaddr_in *)ss;
 	return inet_ntop(AF_INET, &sin->sin_addr, buf, len);
+}
+
+static int address_inet(const char *address, inet_addr_t *ina)
+{
+	struct sockaddr_in *sin = (struct sockaddr_in *)ina;
+	void *ptr = &sin->sin_addr;
+
+#ifdef AF_INET6
+	if (strchr(address, ':')) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)ina;
+		void *ptr6 = &sin6->sin6_addr;
+
+		if (inet_pton(AF_INET6, arg_mcaddr, ptr6)) {
+			mcaddr.ss_family = AF_INET6;
+			sin6->sin6_port = htons(arg_mcport);
+			return 0;
+		}
+
+		return 1;	/* 225.1.2.3:4321 unsupported atm. */
+	}
+#endif
+
+	if (inet_pton(AF_INET, arg_mcaddr, ptr)) {
+		mcaddr.ss_family = AF_INET;
+		sin->sin_port = htons(arg_mcport);
+		return 0;
+	}
+
+	return -1;
 }
 
 /*
@@ -371,6 +425,8 @@ int ifinfo(char *iface, inet_addr_t *addr, int family)
 
 	if (!found)
 		warnx("no such interface %s.", iface);
+	if (rc == -1)
+		warnx("no %s address on on interface %s.", family == AF_INET ? "ipv4" : "ipv6", iface);
 
 	return rc;
 }
@@ -394,7 +450,7 @@ double timeval_to_ms(const struct timeval *val)
 
 static int cleanup(void)
 {
-	if ((setsockopt(sd, IPPROTO_IP, IP_DROP_MEMBERSHIP, &imr, sizeof(imr))) < 0)
+	if ((setsockopt(sd, ipproto, MCAST_LEAVE_GROUP, &gr, sizeof(gr))) < 0)
 		err(1, "setsockopt() failed");
 
 	close(sd);
@@ -464,7 +520,7 @@ void send_mping(int signo)
 	mping.type       = SENDER;
 	mping.ttl        = arg_ttl;
 	mping.src_host   = myaddr;
-	mping.dest_host  = mcaddr.sin_addr;
+	mping.dest_host  = mcaddr;
 	mping.seq_no     = htonl(seqno);
 	mping.pid        = pid;
 	mping.tv.tv_sec  = htonl(mping.tv.tv_sec);
@@ -561,11 +617,10 @@ void sender_listen_loop(void)
 				rtt_min = rtt;
 
 			/* output received packet information */
-                        if (!quiet) {
+                        if (!quiet)
                                 printf("%d bytes from %s: seqno=%u ttl=%d time=%.1f ms\n",
-                                       len, inet_ntoa(rcvd_pkt->src_host),
+                                       len, inet_address(&rcvd_pkt->src_host, NULL, 0),
                                        rcvd_pkt->seq_no, rcvd_pkt->ttl, rtt);
-                        }
 		}
 	}
 }
@@ -588,8 +643,8 @@ void receiver_listen_loop(void)
 		if (process_mping(recv_packet, len, SENDER) == 0) {
                         if (!quiet)
                                 printf("Received mping from %s bytes=%d seqno=%u ttl=%d\n",
-                                       inet_ntoa(rcvd_pkt->src_host), len,
-                                       rcvd_pkt->seq_no, rcvd_pkt->ttl);
+                                       inet_address(&rcvd_pkt->src_host, NULL, 0),
+                                       len, rcvd_pkt->seq_no, rcvd_pkt->ttl);
 
 			rcvd_pkt->type       = RECEIVER;
 			rcvd_pkt->src_host   = myaddr;
@@ -611,9 +666,12 @@ int usage(void)
 {
 	fprintf(stderr,
 		"Usage:\n"
-                "  mping [-dhqrsv] [-c COUNT] [-i IFNAME] [-p PORT] [-t TTL] [-w SEC] [-W SEC] [GROUP]\n"
+                "  mping [-" OPTSTR "dhqrsv] [-c COUNT] [-i IFNAME] [-p PORT] [-t TTL] [-w SEC] [-W SEC] [GROUP]\n"
                 "\n"
 		"Options:\n"
+#ifdef AF_INET6
+		"  -6          Use IPv6 only, default: IPv4"
+#endif
                 "  -c COUNT    Stop after sending/receiving COUNT packets\n"
                 "  -d          Debug messages\n"
 		"  -h          This help text\n"
@@ -622,7 +680,7 @@ int usage(void)
                 "  -q          Quiet output, only startup and and summary lines\n"
 		"  -r          Receiver mode, default\n"
                 "  -s          Sender mode\n"
-		"  -t TTL      Multicast time to live to send, default %d\n"
+		"  -t TTL      Multicast time to live to send, IPv6 hops, default %d\n"
 		"  -v          Show program version and contact information\n"
                 "  -w DEADLINE Timeout before exiting, waiting for COUNT replies\n"
                 "  -W TIMEOUT  Time to wait for a response, in seconds, default 5\n"
@@ -636,6 +694,7 @@ int usage(void)
 
 int main(int argc, char **argv)
 {
+	int family = AF_INET;
 	char *iface = NULL;
         inet_addr_t addr;
 	char ifname[16];
@@ -643,8 +702,14 @@ int main(int argc, char **argv)
 	int ifindex;
 	int c;
 
-	while ((c = getopt(argc, argv, "c:dh?i:p:qrst:vW:w:")) != -1) {
+	while ((c = getopt(argc, argv, OPTSTR "c:dh?i:p:qrst:vW:w:")) != -1) {
 		switch (c) {
+#ifdef AF_INET6
+		case '6':
+			family = AF_INET6;
+			break;
+#endif
+
                 case 'c':
                         arg_count = atoi(optarg);
                         break;
@@ -702,17 +767,24 @@ int main(int argc, char **argv)
 
         if (optind < argc)
                 strlencpy(arg_mcaddr, argv[optind], sizeof(arg_mcaddr));
+#ifdef AF_INET6
+	else if (family == AF_INET6)
+                strlencpy(arg_mcaddr, MC_GROUP_INET6, sizeof(arg_mcaddr));
+#endif
+
+	if (address_inet(arg_mcaddr, &mcaddr))
+		errx(1, "invalid multicast group");
+
+	if (mcaddr.ss_family != family)
+		family = mcaddr.ss_family;
 
 	pid = getpid();
-	ifindex = ifinfo(iface, &addr, AF_INET);
+	ifindex = ifinfo(iface, &addr, family);
 	if (ifindex <= 0)
 		exit(1);
 
-	init_socket(ifindex);
-        if (addr.ss_family == AF_INET) {
-                struct sockaddr_in *sin = (struct sockaddr_in *)&addr;
-                myaddr = sin->sin_addr;
-        }
+	init_socket(mcaddr.ss_family, ifindex);
+	myaddr = addr;
 
 	if (mode == 's') {
 		struct timespec now;

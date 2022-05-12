@@ -1,6 +1,6 @@
 .\" Hey Emacs, this is an -*- nroff -*- document
 .\"
-.\" Copyright (c) 2021  Joachim Wiberg <troglobit@gmail.com>
+.\" Copyright (c) 2021-2022  Joachim Wiberg <troglobit@gmail.com>
 .\"
 .\" Permission is hereby granted, free of charge, to any person obtaining a copy
 .\" of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,7 @@
 .\" OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 .\" THE SOFTWARE.
 .\"
-.Dd October 31, 2021
+.Dd May 12, 2022
 .Dt MPING 1
 .Os
 .Sh NAME
@@ -28,7 +28,7 @@
 .Nd a simple multicast ping program
 .Sh SYNOPSIS
 .Nm
-.Op Fl dhqrsv
+.Op Fl 6dhqrsv
 .Op Fl c Ar COUNT
 .Op Fl i Ar IFNAME
 .Op Fl p Ar PORT
@@ -38,20 +38,22 @@
 .Op Ar GROUP
 .Sh DESCRIPTION
 .Nm
-mping intends to be an easy to use and script friendly program.  Similar
-to the standard
+aspires to be an easy to use and script friendly program.  Similar to
+the standard
 .Xr ping 1
 program, but unlike it, the response to multicast ping is sent by
 another
 .Nm .
-IT can be used to verify intended IGMP snooping functionality in layer-2
-bridges (switches), as well as verify forwarding of multicast in static
+It can be used to verify intended IGMP/MLD snooping functionality in any
+layer-2 bridges (switches), as well as verify forwarding of multicast in
+static
 .Nm ( SMCRoute )
 or dynamic
 .Nm ( mrouted ,
 .Nm pimd ,
+.Nm pimd-dense ,
 or
-.Nm pimd-dense )
+.Nm pim6sd )
 multicast routing setups.
 .Pp
 By default,
@@ -67,13 +69,13 @@ otherwise the unicast routing table is used by the kernel to select the
 outbound interface, which often is not what you want.
 .Ss Limitations
 .Nm
-currently only supports any-source multicast, ASM (*,G), and is limited
-to IPv4.
+currently only supports any-source multicast, ASM (*,G).
 .Pp
 .Nm
-does not create or send IGMP frames directly.  It only asks the Linux
+does not create or send IGMP/MLD frames directly.  Instead, it asks the
 kernel for groups from a specific interface, which is then converted to
-the IGMP v2 join messages, or IGMP v3 membership reports by the kernel.
+the IGMPv2/MLDv1 join messages, or IGMPv3/MLDv2 membership reports by
+the kernel.
 .Ss Changing IGMP Version on Linux
 On Linux systems you can change the IGMP version of an interface, and
 thus what type of packets the kernel generates, by writing to the file
@@ -86,6 +88,9 @@ echo 2 | sudo tee /proc/sys/net/ipv4/conf/eth0/force_igmp_version
 .Ed
 .Sh OPTIONS
 .Bl -tag -width Ds
+.It Fl 6
+Use IPv6 only.  Defaults to group ff2e::42, unless an IPv6 multicast
+grop is the first non-option argument
 .It Fl c Ar COUNT
 Stop sending/receiving after COUNT number of packets.  The sender
 .Nm
