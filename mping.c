@@ -670,7 +670,7 @@ int usage(void)
                 "\n"
 		"Options:\n"
 #ifdef AF_INET6
-		"  -6          Use IPv6 only, default: IPv4"
+		"  -6          Use IPv6 instead of IPv4, see below for defaults\n"
 #endif
                 "  -c COUNT    Stop after sending/receiving COUNT packets\n"
                 "  -d          Debug messages\n"
@@ -685,9 +685,12 @@ int usage(void)
                 "  -w DEADLINE Timeout before exiting, waiting for COUNT replies\n"
                 "  -W TIMEOUT  Time to wait for a response, in seconds, default 5\n"
                 "\n"
-                "Defaults to use multicast group %s, UDP dst port %d, outbound\n"
-                "interface is chosen by the routing table, unless -i IFNAME\n",
-                MC_PORT_DEFAULT, MC_TTL_DEFAULT, MC_GROUP_DEFAULT, MC_PORT_DEFAULT);
+                "Defaults to use multicast group %s, UDP dst port %d, unless -6 in which\n"
+		"case a multicast group %s is used.  When a group argument is given, the\n"
+		"address family is chosen from that.  The selected outbound interface is chosen\n"
+                "by querying the routing table, unless -i IFNAME\n",
+                MC_PORT_DEFAULT, MC_TTL_DEFAULT, MC_GROUP_DEFAULT, MC_PORT_DEFAULT,
+		MC_GROUP_INET6);
 
 	return 0;
 }
