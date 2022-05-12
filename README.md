@@ -1,9 +1,9 @@
 a simple multicast ping program
 ===============================
 
-mping intends to be an easy to use and script friendly program.  Similar
-to the standard ping program, but unlike it, the response to multicast
-ping is sent by another mping.
+mping aspires to be an easy to use and script friendly program with
+support for both IPv4 and IPv6.  Similar to the standard ping program,
+but unlike it, the response to multicast ping is sent by another mping.
 
 ```
       mping --> Hello!
@@ -34,9 +34,10 @@ Usage
 
 ```
 Usage:
-  mping [-dhqrsv] [-c COUNT] [-i IFNAME] [-p PORT] [-t TTL] [-w SEC] [-W SEC] [GROUP]
+  mping [-6dhqrsv] [-c COUNT] [-i IFNAME] [-p PORT] [-t TTL] [-w SEC] [-W SEC] [GROUP]
 
 Options:
+  -6          Use IPv6 instead of IPv4, see below for defaults
   -c COUNT    Stop after sending/receiving COUNT packets
   -d          Debug messages
   -h          This help text
@@ -45,13 +46,15 @@ Options:
   -q          Quiet output, only startup and and summary lines
   -r          Receiver mode, default
   -s          Sender mode
-  -t TTL      Multicast time to live to send, default 1
+  -t TTL      Multicast time to live to send, IPv6 hops, default 1
   -v          Show program version and contact information
   -w DEADLINE Timeout before exiting, waiting for COUNT replies
   -W TIMEOUT  Time to wait for a response, in seconds, default 5
 
-Defaults to use multicast group 225.1.2.3, UDP dst port 4321, outbound
-interface is chosen by the routing table, unless -i IFNAME
+Defaults to use multicast group 225.1.2.3, UDP dst port 4321, unless -6 in which
+case a multicast group ff2e::42 is used.  When a group argument is given, the
+address family is chosen from that.  The selected outbound interface is chosen
+by querying the routing table, unless -i IFNAME
 ```
 
 > **Note:** the `mping` receiver (currently) also needs to set the TTL
