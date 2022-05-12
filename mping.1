@@ -38,8 +38,8 @@
 .Op Ar GROUP
 .Sh DESCRIPTION
 .Nm
-aspires to be an easy to use and script friendly program.  Similar to
-the standard
+aspires to be an easy to use and script friendly program with support
+for both IPv4 and IPv6.  Similar to the standard
 .Xr ping 1
 program, but unlike it, the response to multicast ping is sent by
 another
@@ -89,8 +89,10 @@ echo 2 | sudo tee /proc/sys/net/ipv4/conf/eth0/force_igmp_version
 .Sh OPTIONS
 .Bl -tag -width Ds
 .It Fl 6
-Use IPv6 only.  Defaults to group ff2e::42, unless an IPv6 multicast
-grop is the first non-option argument
+Use IPv6 instead of IPv4.  Defaults to group ff2e::42, unless an IPv6
+multicast grop is the first non-option argument.  The optional group
+argument overrides the address family, so if an IPv4 group is detected
+this option is ignored
 .It Fl c Ar COUNT
 Stop sending/receiving after COUNT number of packets.  The sender
 .Nm
