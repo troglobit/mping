@@ -4,6 +4,14 @@ ChangeLog
 All notable changes to the project are documented in this file.
 
 
+[v2.0][] - 2022-05-12
+---------------------
+
+### Changes
+- Add IPv6 support, still ASM
+- Detect address family from command line group argument, or `-6`
+
+
 [v1.6][] - 2021-10-31
 ---------------------
 
@@ -71,7 +79,8 @@ v1.2 - 2014-06-20
 
 Initial version, available from the toolbox repo.
 
-[UNRELEASED]: https://github.com/troglobit/mping/compare/v1.5...HEAD
+[UNRELEASED]: https://github.com/troglobit/mping/compare/v2.0...HEAD
+[v2.0]: https://github.com/troglobit/mping/compare/v1.6...v2.0
 [v1.6]: https://github.com/troglobit/mping/compare/v1.5...v1.6
 [v1.5]: https://github.com/troglobit/mping/compare/v1.4...v1.5
 [v1.4]: https://github.com/troglobit/mping/compare/v1.3...v1.4
