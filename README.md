@@ -23,10 +23,10 @@ Multicast friendly network ---'
 > the unicast routing table (e.g., default route), the MULTICAST flag
 > on your interfaces, and ... the TTL in routed networks!
 
-By default, mping starts in receiver mode, joining the group given as
-command line argument.  To start as a sender, use `-s` and remember to
-set the `-t TTL` value greater than the number of routing "hops" when
-testing in a routed topology.
+By default, mping starts in receiver/reflector mode, joining the group
+given as command line argument.  To start as a sender, use `-s` and
+remember to set the `-t TTL` value greater than the number of routing
+"hops" when testing in a routed topology.
 
 
 Usage
@@ -44,7 +44,7 @@ Options:
   -i IFNAME   Interface to use for sending/receiving
   -p PORT     Multicast port to listen/send to, default 4321
   -q          Quiet output, only startup and and summary lines
-  -r          Receiver mode, default
+  -r          Receiver/reflector mode, default
   -s          Sender mode
   -t TTL      Multicast time to live to send, IPv6 hops, default 1
   -v          Show program version and contact information
@@ -57,7 +57,7 @@ address family is chosen from that.  The selected outbound interface is chosen
 by querying the routing table, unless -i IFNAME
 ```
 
-> **Note:** the `mping` receiver (currently) also needs to set the TTL
+> **Note:** the `mping` receiver/reflector also needs to set the TTL
 > value, this is crucial in a routed setup or the reply is dropped.
 
 

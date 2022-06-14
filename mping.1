@@ -58,9 +58,10 @@ multicast routing setups.
 .Pp
 By default,
 .Nm
-starts in receiver mode, joining group 225.1.2.3, and for each received
-UDP packet from the sender, it is looped back.  For unicast ping, this
-is handled by the TCP/IP stack.  To run in sender mode, use the
+starts in receiver/reflector mode, joining group 225.1.2.3, and for each
+received UDP packet from the sender, it is looped back.  For unicast
+ping, this is handled by the TCP/IP stack.  To run in sender mode, use
+the
 .Fl s
 command line option.  Remember to adjust the TTL value if you are in a
 routed setup, and to set the multicast interface with
@@ -116,7 +117,8 @@ UDP port number to send/listen to, default: 4321
 .It Fl q
 Quiet output, only startup message and summary lines are printed
 .It Fl r
-Act as receiver, looping back packets to the sender, default: yes
+Act as receiver/reflector, looping back packets to the sender, default:
+yes
 .It Fl s
 Act as sender, sends packets to select groups, default: no
 .It Fl t Ar TTL

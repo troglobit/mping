@@ -678,7 +678,7 @@ int usage(void)
 		"  -i IFNAME   Interface to use for sending/receiving\n"
 		"  -p PORT     Multicast port to listen/send to, default %d\n"
                 "  -q          Quiet output, only startup and and summary lines\n"
-		"  -r          Receiver mode, default\n"
+		"  -r          Receiver/reflector mode, default\n"
                 "  -s          Sender mode\n"
 		"  -t TTL      Multicast time to live to send, IPv6 hops, default %d\n"
 		"  -v          Show program version and contact information\n"
