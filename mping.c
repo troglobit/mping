@@ -402,9 +402,10 @@ int ifinfo(char *iface, inet_addr_t *addr, int family)
 
 		if (family == AF_UNSPEC) {
 			if (ifa->ifa_addr->sa_family != AF_INET &&
-			    ifa->ifa_addr->sa_family != AF_INET6)
+			    ifa->ifa_addr->sa_family != AF_INET6) {
 				dbg("%s no IPv4 or IPv6 address, skipping ...", iface);
 				continue;
+			}
 		} else if (ifa->ifa_addr->sa_family != family) {
 			dbg("%s not matching address family, skipping ...", iface);
 			continue;
