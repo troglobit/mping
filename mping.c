@@ -53,9 +53,7 @@
 #define MC_PORT_DEFAULT  4321
 #define MC_TTL_DEFAULT   1
 
-#define RESPONSES_MAX    100
-
-#define MAX_BUF_LEN      1024
+#define MAX_BUF_LEN      2048
 #define MAX_HOSTNAME_LEN 256
 
 #define SENDER           's'
@@ -77,10 +75,14 @@ struct mping {
 	pid_t           pid;
 
 	struct timeval  tv;
-} mping;
+
+	char            payload[0];	/* optional payload */
+};
 
 /*#define BANDWIDTH 10000.0 */          /* bw in bytes/sec for mping */
 #define BANDWIDTH 100.0                 /* bw in bytes/sec for mping */
+
+#define MAX_PAYLOAD     (MAX_BUF_LEN - sizeof(struct mping))
 
 /* pointer to mping packet buffer */
 struct mping *rcvd_pkt;
@@ -116,6 +118,7 @@ double rtt_min   = 999999999.0;
 char          arg_mcaddr[INET_ADDRSTR_LEN] = MC_GROUP_DEFAULT;
 int           arg_mcport     = MC_PORT_DEFAULT;
 int           arg_count      = -1;
+int           arg_payload    = 0;
 int           arg_timeout    = 5;
 int           arg_deadline   = 0;
 unsigned char arg_ttl        = MC_TTL_DEFAULT;
@@ -476,11 +479,9 @@ static void clean_exit(int signo)
 	running = 0;
 }
 
-void send_packet(struct mping *packet)
+void send_packet(struct mping *packet, ssize_t len)
 {
-	int pkt_len = sizeof(struct mping);
-
-	if ((sendto(sd, packet, pkt_len, 0, (struct sockaddr *)&mcaddr, sizeof(mcaddr))) != pkt_len)
+	if ((sendto(sd, packet, len, 0, (struct sockaddr *)&mcaddr, sizeof(mcaddr))) != len)
 		err(1, "sendto() sent incorrect number of bytes");
 
         packets_sent++;
@@ -488,6 +489,8 @@ void send_packet(struct mping *packet)
 
 void send_mping(int signo)
 {
+	static char buf[MAX_BUF_LEN + 1];
+	struct mping *packet = (struct mping *)buf;
 	static int seqno = 0;
 	struct timespec now;
 
@@ -516,18 +519,19 @@ void send_mping(int signo)
 		return;
 	}
 
-	TIMESPEC_TO_TIMEVAL(&mping.tv, &now);
-        strlencpy(mping.version, VERSION, sizeof(mping.version));
-	mping.type       = SENDER;
-	mping.ttl        = arg_ttl;
-	mping.src_host   = myaddr;
-	mping.dest_host  = mcaddr;
-	mping.seq_no     = htonl(seqno);
-	mping.pid        = pid;
-	mping.tv.tv_sec  = htonl(mping.tv.tv_sec);
-	mping.tv.tv_usec = htonl(mping.tv.tv_usec);
+	memset(buf, 0, sizeof(buf));
+	TIMESPEC_TO_TIMEVAL(&packet->tv, &now);
+        strlencpy(packet->version, VERSION, sizeof(packet->version));
+	packet->type       = SENDER;
+	packet->ttl        = arg_ttl;
+	packet->src_host   = myaddr;
+	packet->dest_host  = mcaddr;
+	packet->seq_no     = htonl(seqno);
+	packet->pid        = pid;
+	packet->tv.tv_sec  = htonl(packet->tv.tv_sec);
+	packet->tv.tv_usec = htonl(packet->tv.tv_usec);
 
-	send_packet(&mping);
+	send_packet(packet, sizeof(struct mping) + arg_payload);
 	seqno++;
 
 	/* set another alarm call to send in 1 second */
@@ -655,7 +659,7 @@ void receiver_listen_loop(void)
 			rcvd_pkt->tv.tv_usec = htonl(rcvd_pkt->tv.tv_usec);
 
                         /* send reply immediately */
-			send_packet(rcvd_pkt);
+			send_packet(rcvd_pkt, len);
 
 			if (arg_count > 0 && packets_sent >= arg_count)
 				exit(0);
@@ -667,12 +671,14 @@ int usage(void)
 {
 	fprintf(stderr,
 		"Usage:\n"
-                "  mping [-" OPTSTR "dhqrsv] [-c COUNT] [-i IFNAME] [-p PORT] [-t TTL] [-w SEC] [-W SEC] [GROUP]\n"
+                "  mping [-" OPTSTR "dhqrsv] [-b BYTES] [-c COUNT] [-i IFNAME] [-p PORT] [-t TTL]\n"
+		"        [-w SEC] [-W SEC] [GROUP]\n"
                 "\n"
 		"Options:\n"
 #ifdef AF_INET6
 		"  -6          Use IPv6 instead of IPv4, see below for defaults\n"
 #endif
+		"  -b BYTES    Extra payload bytes (empty data), default: 0\n"
                 "  -c COUNT    Stop after sending/receiving COUNT packets\n"
                 "  -d          Debug messages\n"
 		"  -h          This help text\n"
@@ -706,8 +712,13 @@ int main(int argc, char **argv)
 	int ifindex;
 	int c;
 
-	while ((c = getopt(argc, argv, OPTSTR "c:dh?i:p:qrst:vW:w:")) != -1) {
+	while ((c = getopt(argc, argv, OPTSTR "b:c:dh?i:p:qrst:vW:w:")) != -1) {
 		switch (c) {
+		case 'b':
+			arg_payload = atoi(optarg);
+			if (arg_payload < 0 || arg_payload > (int)MAX_PAYLOAD)
+				errx(1, "Invalid or too large payload, max %zu", MAX_PAYLOAD);
+			break;
 #ifdef AF_INET6
 		case '6':
 			family = AF_INET6;

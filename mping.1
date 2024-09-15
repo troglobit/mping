@@ -20,7 +20,7 @@
 .\" OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 .\" THE SOFTWARE.
 .\"
-.Dd May 12, 2022
+.Dd Sep 15, 2024
 .Dt MPING 1
 .Os
 .Sh NAME
@@ -29,6 +29,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl 6dhqrsv
+.Op Fl b Ar BYTES
 .Op Fl c Ar COUNT
 .Op Fl i Ar IFNAME
 .Op Fl p Ar PORT
@@ -94,6 +95,8 @@ Use IPv6 instead of IPv4.  Defaults to group ff2e::42, unless an IPv6
 multicast grop is the first non-option argument.  The optional group
 argument overrides the address family, so if an IPv4 group is detected
 this option is ignored
+.It Fl b Ar BYTES
+Extra payload bytes (empty data) to pad each packet with, default: 0.
 .It Fl c Ar COUNT
 Stop sending/receiving after COUNT number of packets.  The sender
 .Nm
