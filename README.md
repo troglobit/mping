@@ -34,10 +34,11 @@ Usage
 
 ```
 Usage:
-  mping [-6dhqrsv] [-c COUNT] [-i IFNAME] [-p PORT] [-t TTL] [-w SEC] [-W SEC] [GROUP]
+  mping [-6dhqrsv] [-b BYTES] [-c COUNT] [-i IFNAME] [-p PORT] [-t TTL] [-w SEC] [-W SEC] [GROUP]
 
 Options:
   -6          Use IPv6 instead of IPv4, see below for defaults
+  -b BYTES    Extra payload bytes (empty data), default: 0
   -c COUNT    Stop after sending/receiving COUNT packets
   -d          Debug messages
   -h          This help text
