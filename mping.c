@@ -48,6 +48,14 @@
 #define dbg(fmt,args...) do { if (debug) printf(fmt "\n", ##args); } while (0)
 #define sig(s,c)    do { struct sigaction a = {.sa_handler=c};sigaction(s,&a,0); } while(0)
 
+#if __BIG_ENDIAN__
+# define htonll(x) (x)
+# define ntohll(x) (x)
+#else
+# define htonll(x) (((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
+# define ntohll(x) (((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
+#endif
+
 #define MC_GROUP_DEFAULT "225.1.2.3"
 #define MC_GROUP_INET6   "ff2e::42"
 #define MC_PORT_DEFAULT  4321
@@ -528,8 +536,16 @@ void send_mping(int signo)
 	packet->dest_host  = mcaddr;
 	packet->seq_no     = htonl(seqno);
 	packet->pid        = pid;
-	packet->tv.tv_sec  = htonl(packet->tv.tv_sec);
-	packet->tv.tv_usec = htonl(packet->tv.tv_usec);
+
+	if (sizeof(packet->tv.tv_sec) == 8)
+		packet->tv.tv_sec  = htonll(packet->tv.tv_sec);
+	else
+		packet->tv.tv_sec  = htonl(packet->tv.tv_sec);
+
+	if (sizeof(packet->tv.tv_usec) == 8)
+		packet->tv.tv_usec = htonll(packet->tv.tv_usec);
+	else
+		packet->tv.tv_usec = htonl(packet->tv.tv_usec);
 
 	send_packet(packet, sizeof(struct mping) + arg_payload);
 	seqno++;
@@ -548,8 +564,17 @@ int process_mping(char *packet, int len, unsigned char type)
 
 	rcvd_pkt = (struct mping *)packet;
 	rcvd_pkt->seq_no        = ntohl(rcvd_pkt->seq_no);
-	rcvd_pkt->tv.tv_sec     = ntohl(rcvd_pkt->tv.tv_sec);
-	rcvd_pkt->tv.tv_usec    = ntohl(rcvd_pkt->tv.tv_usec);
+
+
+	if (sizeof(rcvd_pkt->tv.tv_sec) == 8)
+		rcvd_pkt->tv.tv_sec  = ntohll(rcvd_pkt->tv.tv_sec);
+	else
+		rcvd_pkt->tv.tv_sec  = ntohl(rcvd_pkt->tv.tv_sec);
+
+	if (sizeof(rcvd_pkt->tv.tv_usec) == 8)
+		rcvd_pkt->tv.tv_usec = ntohll(rcvd_pkt->tv.tv_usec);
+	else
+		rcvd_pkt->tv.tv_usec = ntohl(rcvd_pkt->tv.tv_usec);
 
 	if (strcmp(rcvd_pkt->version, VERSION)) {
 		dbg("Discarding packet: version mismatch (%s)", rcvd_pkt->version);
@@ -655,8 +680,16 @@ void receiver_listen_loop(void)
 			rcvd_pkt->src_host   = myaddr;
 			rcvd_pkt->dest_host  = rcvd_pkt->src_host;
 			rcvd_pkt->seq_no     = htonl(rcvd_pkt->seq_no);
-			rcvd_pkt->tv.tv_sec  = htonl(rcvd_pkt->tv.tv_sec);
-			rcvd_pkt->tv.tv_usec = htonl(rcvd_pkt->tv.tv_usec);
+
+			if (sizeof(rcvd_pkt->tv.tv_sec) == 8)
+				rcvd_pkt->tv.tv_sec  = htonll(rcvd_pkt->tv.tv_sec);
+			else
+				rcvd_pkt->tv.tv_sec  = htonl(rcvd_pkt->tv.tv_sec);
+
+			if (sizeof(rcvd_pkt->tv.tv_usec) == 8)
+				rcvd_pkt->tv.tv_usec = htonll(rcvd_pkt->tv.tv_usec);
+			else
+				rcvd_pkt->tv.tv_usec = htonl(rcvd_pkt->tv.tv_usec);
 
                         /* send reply immediately */
 			send_packet(rcvd_pkt, len);
@@ -797,6 +830,11 @@ int main(int argc, char **argv)
 	ifindex = ifinfo(iface, &addr, family);
 	if (ifindex <= 0)
 		exit(1);
+
+	if (debug) {
+		struct mping packet;
+		printf("tv_sec/tv_usec size: %zu/%zu\n", sizeof(packet.tv.tv_sec), sizeof(packet.tv.tv_usec));
+	}
 
 	init_socket(mcaddr.ss_family, ifindex);
 	myaddr = addr;
