@@ -2,7 +2,7 @@ all:
 	true
 
 check: all
-	unshare -mrun ./basic.sh
+	unshare -mrun --map-auto ./basic.sh
 
 clean:
 	true
