@@ -377,6 +377,36 @@ fallback:
 	return ifany(iface, len);
 }
 
+static void hton_packet(struct mping *packet)
+{
+	packet->seq_no = htonl(packet->seq_no);
+
+	if (sizeof(packet->tv.tv_sec) == 8)
+		packet->tv.tv_sec  = htonll(packet->tv.tv_sec);
+	else
+		packet->tv.tv_sec  = htonl(packet->tv.tv_sec);
+
+	if (sizeof(packet->tv.tv_usec) == 8)
+		packet->tv.tv_usec = htonll(packet->tv.tv_usec);
+	else
+		packet->tv.tv_usec = htonl(packet->tv.tv_usec);
+}
+
+static void ntoh_packet(struct mping *packet)
+{
+	packet->seq_no = ntohl(packet->seq_no);
+
+	if (sizeof(packet->tv.tv_sec) == 8)
+		packet->tv.tv_sec  = ntohll(packet->tv.tv_sec);
+	else
+		packet->tv.tv_sec  = ntohl(packet->tv.tv_sec);
+
+	if (sizeof(packet->tv.tv_usec) == 8)
+		packet->tv.tv_usec = ntohll(packet->tv.tv_usec);
+	else
+		packet->tv.tv_usec = ntohl(packet->tv.tv_usec);
+}
+
 /* Find IP address of default outbound LAN interface */
 int ifinfo(char *iface, inet_addr_t *addr, int family)
 {
@@ -534,18 +564,10 @@ void send_mping(int signo)
 	packet->ttl        = arg_ttl;
 	packet->src_host   = myaddr;
 	packet->dest_host  = mcaddr;
-	packet->seq_no     = htonl(seqno);
+	packet->seq_no     = seqno;
 	packet->pid        = pid;
 
-	if (sizeof(packet->tv.tv_sec) == 8)
-		packet->tv.tv_sec  = htonll(packet->tv.tv_sec);
-	else
-		packet->tv.tv_sec  = htonl(packet->tv.tv_sec);
-
-	if (sizeof(packet->tv.tv_usec) == 8)
-		packet->tv.tv_usec = htonll(packet->tv.tv_usec);
-	else
-		packet->tv.tv_usec = htonl(packet->tv.tv_usec);
+	ntoh_packet(packet);
 
 	send_packet(packet, sizeof(struct mping) + arg_payload);
 	seqno++;
@@ -563,18 +585,8 @@ int process_mping(char *packet, int len, unsigned char type)
 	}
 
 	rcvd_pkt = (struct mping *)packet;
-	rcvd_pkt->seq_no        = ntohl(rcvd_pkt->seq_no);
 
-
-	if (sizeof(rcvd_pkt->tv.tv_sec) == 8)
-		rcvd_pkt->tv.tv_sec  = ntohll(rcvd_pkt->tv.tv_sec);
-	else
-		rcvd_pkt->tv.tv_sec  = ntohl(rcvd_pkt->tv.tv_sec);
-
-	if (sizeof(rcvd_pkt->tv.tv_usec) == 8)
-		rcvd_pkt->tv.tv_usec = ntohll(rcvd_pkt->tv.tv_usec);
-	else
-		rcvd_pkt->tv.tv_usec = ntohl(rcvd_pkt->tv.tv_usec);
+	ntoh_packet(rcvd_pkt);
 
 	if (strcmp(rcvd_pkt->version, VERSION)) {
 		dbg("Discarding packet: version mismatch (%s)", rcvd_pkt->version);
@@ -679,17 +691,8 @@ void receiver_listen_loop(void)
 			rcvd_pkt->type       = RECEIVER;
 			rcvd_pkt->src_host   = myaddr;
 			rcvd_pkt->dest_host  = rcvd_pkt->src_host;
-			rcvd_pkt->seq_no     = htonl(rcvd_pkt->seq_no);
 
-			if (sizeof(rcvd_pkt->tv.tv_sec) == 8)
-				rcvd_pkt->tv.tv_sec  = htonll(rcvd_pkt->tv.tv_sec);
-			else
-				rcvd_pkt->tv.tv_sec  = htonl(rcvd_pkt->tv.tv_sec);
-
-			if (sizeof(rcvd_pkt->tv.tv_usec) == 8)
-				rcvd_pkt->tv.tv_usec = htonll(rcvd_pkt->tv.tv_usec);
-			else
-				rcvd_pkt->tv.tv_usec = htonl(rcvd_pkt->tv.tv_usec);
+			hton_packet(rcvd_pkt);
 
                         /* send reply immediately */
 			send_packet(rcvd_pkt, len);
