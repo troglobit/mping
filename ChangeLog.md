@@ -4,6 +4,17 @@ ChangeLog
 All notable changes to the project are documented in this file.
 
 
+[v2.1][] - 2026-01-04
+---------------------
+
+### Changes
+- Add `-b BYTES` option to increase (empty) payload size
+
+### Fixes
+- If IPv4/IPv6 address type is not specified and cannot be inferred from
+  an interface, skip it
+- Fix htonl on 64-bit values, found and fixed by Marek Küthe
+
 [v2.0][] - 2022-05-12
 ---------------------
 
@@ -79,7 +90,8 @@ v1.2 - 2014-06-20
 
 Initial version, available from the toolbox repo.
 
-[UNRELEASED]: https://github.com/troglobit/mping/compare/v2.0...HEAD
+[UNRELEASED]: https://github.com/troglobit/mping/compare/v2.1...HEAD
+[v2.1]: https://github.com/troglobit/mping/compare/v2.0...v2.1
 [v2.0]: https://github.com/troglobit/mping/compare/v1.6...v2.0
 [v1.6]: https://github.com/troglobit/mping/compare/v1.5...v1.6
 [v1.5]: https://github.com/troglobit/mping/compare/v1.4...v1.5
